@@ -2578,7 +2578,7 @@
       void modal.element.offsetHeight;
       modal.element.classList.add('show');
       modal.previousFocus = previousFocus;
-      document.body.style.overflow = 'hidden';
+      if (this.stack.length === 1) scrollLock(); /* only lock once for nested modals */
       this.setupFocusTrap(modal.element);
       setTimeout(() => {
         const focusableEl = modal.element.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
@@ -2601,7 +2601,7 @@
         }
       }, 350);
       if (this.stack.length === 0) {
-        document.body.style.overflow = '';
+        scrollUnlock();
       }
       if (modal.previousFocus && modal.previousFocus.focus) {
         setTimeout(() => {
@@ -2623,7 +2623,7 @@
 
     closeAll() {
       while (this.stack.length > 0) this.closeTop();
-      document.body.style.overflow = '';
+      scrollUnlock();
       return true;
     }
 
@@ -6784,14 +6784,14 @@
     if (qaCatError) qaCatError.style.display = 'none';
     qaSelectedCat = null;
     qaOverlay.classList.add('show');
-    document.body.style.overflow = 'hidden';
+    scrollLock();
     setTimeout(() => { if (qaAmountInput) qaAmountInput.focus(); }, 80);
   }
 
   function closeQuickAdd() {
     if (!qaOverlay) return;
     qaOverlay.classList.remove('show');
-    document.body.style.overflow = '';
+    scrollUnlock();
   }
 
   function submitQuickAdd() {
