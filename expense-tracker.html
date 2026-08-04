@@ -34,16 +34,32 @@
       radial-gradient(ellipse 60% 45% at 20% 95%, rgba(214,196,255,0.45), transparent 60%),
       radial-gradient(ellipse 55% 40% at 95% 90%, rgba(180,215,255,0.4), transparent 60%),
       var(--bg);
-    background-attachment:fixed;
-    min-height:100vh;
+    /* background-attachment:fixed causes repainting jank on Android/iOS Chrome;
+       use a pseudo-element with fixed background instead */
+    background-attachment: scroll;
+    min-height: 100dvh; /* dvh = dynamic viewport height — accounts for Android address bar */
     position:relative;
+  }
+  /* Fixed-attachment gradient background via ::before to avoid mobile repaint jank */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(ellipse 60% 40% at 15% 8%, rgba(199,188,255,0.55), transparent 60%),
+      radial-gradient(ellipse 55% 40% at 90% 18%, rgba(173,206,255,0.5), transparent 60%),
+      radial-gradient(ellipse 60% 45% at 20% 95%, rgba(214,196,255,0.45), transparent 60%),
+      radial-gradient(ellipse 55% 40% at 95% 90%, rgba(180,215,255,0.4), transparent 60%),
+      var(--bg);
+    pointer-events: none;
   }
   .blob{ position:fixed; border-radius:50%; filter:blur(70px); z-index:-1; pointer-events:none; }
   .blob1{ width:280px; height:280px; top:-60px; left:-70px; background:rgba(180,160,255,0.55); }
   .blob2{ width:260px; height:260px; top:120px; right:-90px; background:rgba(150,195,255,0.5); }
   .blob3{ width:300px; height:300px; bottom:-80px; left:-60px; background:rgba(210,180,255,0.45); }
   .blob4{ width:240px; height:240px; bottom:60px; right:-70px; background:rgba(160,200,255,0.4); }
-  #app{ max-width:var(--app-max-width); margin:0 auto; padding:calc(1.1rem + env(safe-area-inset-top)) var(--app-gutter) calc(6rem + env(safe-area-inset-bottom)); position:relative; min-height:100vh; }
+  #app{ max-width:var(--app-max-width); margin:0 auto; padding:calc(1.1rem + env(safe-area-inset-top)) var(--app-gutter) calc(6rem + env(safe-area-inset-bottom)); position:relative; min-height:100dvh; }
   input, select, button{ font-family:inherit; font-size:16px; }
   input[type=text], input[type=number], input[type=date]{
     width:100%; height:46px; border:1.5px solid var(--glass-border); border-radius:13px; padding:0 14px;
@@ -355,7 +371,7 @@
   .budgetDot.danger{ background:var(--danger); }
 
   /* ---- Phase 5: budget management sheet ---- */
-  .budgetSheet{ max-height:88vh; display:flex; flex-direction:column; }
+  .budgetSheet{ max-height:88dvh; display:flex; flex-direction:column; }
   .budgetSheetHeader{ flex-shrink:0; margin-bottom:6px; }
   .budgetSheetScroll{ overflow-y:auto; flex:1; padding-right:2px; -webkit-overflow-scrolling:touch; margin-top:8px; }
   .overallBudgetWrap{ position:relative; }
@@ -640,7 +656,9 @@
   }
 
   html{ scroll-behavior:smooth; }
-  body{ overscroll-behavior-y:none; }
+  /* overscroll-behavior-y:none removed — it blocked momentum scrolling on Android Chrome
+     and prevented pull-to-refresh in the installed PWA */
+  body{ overscroll-behavior-x:none; } /* only block horizontal overscroll to prevent accidental navigation */
   #app{ -webkit-overflow-scrolling:touch; }
 
   /* ---- premium initial reveal ---- */
@@ -1064,11 +1082,11 @@
     .modalSheet{
       width:min(100%, 760px);
       max-width:760px;
-      max-height:min(90vh, 860px);
+      max-height:min(90dvh, 860px);
       border-radius:24px;
       padding:clamp(1.2rem, 2.2vw, 1.6rem);
     }
-    .budgetSheet{ max-height:min(90vh, 860px); }
+    .budgetSheet{ max-height:min(90dvh, 860px); }
     .modalActions{ flex-wrap:wrap; }
     .modalActions .modalBtn{ min-width:180px; flex:1 1 220px; }
 
@@ -2149,6 +2167,26 @@
 
 <script>
 (function(){
+  // ── Mobile-safe scroll lock ─────────────────────────────────────────────
+  // body.style.overflow='hidden' alone causes scroll-position jump on Android.
+  // Instead we freeze body with position:fixed, preserving the scroll offset.
+  let _scrollY = 0;
+  function scrollLock() {
+    _scrollY = window.scrollY;
+    document.body.style.top = '-' + _scrollY + 'px';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.overflowY = 'scroll'; /* keep scrollbar gutter */
+  }
+  function scrollUnlock() {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.overflowY = '';
+    window.scrollTo(0, _scrollY);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   const categories = [
     {name:'Food', short:'Fo', color:'#EF9F27'},
     {name:'Drinks', short:'Dr', color:'#D85A30'},
