@@ -1282,6 +1282,7 @@
       right:max(calc(96px + 22px), calc((100vw - var(--app-max-width,480px)) / 2 + var(--app-gutter,1rem) + 74px));
     }
   }
+</style>
 </head>
 <body>
 <div id="offlineBanner">
@@ -6867,18 +6868,18 @@
         String(now.getMonth() + 1).padStart(2, '0') + '-' +
         String(now.getDate()).padStart(2, '0');
 
-      let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
-      html += '<head><meta charset="utf-8" /><style>td,th{mso-number-format:"@";}</style></head><body>';
-      html += '<table border="1">';
-      html += '<thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount (₹)</th></tr></thead>';
-      html += '<tbody>';
+      let html = '\x3Chtml xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+      html += '\x3Chead>\x3Cmeta charset="utf-8" />\x3Cstyle>td,th{mso-number-format:"@";}\x3C/style>\x3C/head>\x3Cbody>';
+      html += '\x3Ctable border="1">';
+      html += '\x3Cthead>\x3Ctr>\x3Cth>Date\x3C/th>\x3Cth>Category\x3C/th>\x3Cth>Description\x3C/th>\x3Cth>Amount (₹)\x3C/th>\x3C/tr>\x3C/thead>';
+      html += '\x3Ctbody>';
       const sorted = [...expenses].sort((a, b) => b.date < a.date ? -1 : b.date > a.date ? 1 : 0);
       sorted.forEach(e => {
         const safeDesc = String(e.desc || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const safeCat = String(e.category || '').replace(/&/g, '&amp;');
-        html += `<tr><td>${e.date}</td><td>${safeCat}</td><td>${safeDesc}</td><td>${Number(e.price).toFixed(2)}</td></tr>`;
+        html += `\x3Ctr>\x3Ctd>${e.date}\x3C/td>\x3Ctd>${safeCat}\x3C/td>\x3Ctd>${safeDesc}\x3C/td>\x3Ctd>${Number(e.price).toFixed(2)}\x3C/td>\x3C/tr>`;
       });
-      html += '</tbody></table></body></html>';
+      html += '\x3C/tbody>\x3C/table>\x3C/body>\x3C/html>';
 
       const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
