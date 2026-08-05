@@ -1139,7 +1139,7 @@
 
     .card{ padding:1rem; }
     .heroCard{ border-radius:24px; }
-    .todaySpendCard, .budgetCard, .recentTxnSection .card{ min-height:110px; }
+    .todaySpendCard, .budgetCard{ min-height:110px; }
     .qoCard{ min-height:86px; }
     .quickActionBtn{ min-height:78px; padding:12px 6px; }
     .qaLabel{ font-size:11px; }
@@ -1148,8 +1148,7 @@
     .searchFilterRow{ gap:10px; }
     .filterBtn{ width:46px; height:46px; border-radius:13px; }
 
-    #expenseListView .card,
-    #recentTxnSection .card{ padding:0.5rem 0.85rem !important; }
+    #expenseListView .card{ padding:0.5rem 0.85rem !important; }
 
     /* Analytics View split into two columns */
     #analyticsView {
@@ -1437,9 +1436,14 @@
       <div class="sectionHeader">
         <span class="sectionHeaderTitle">Recent Transactions</span>
       </div>
-      <div class="card" style="padding:0.5rem 0.85rem;">
-        <div id="recentTxnList" style="display:flex; flex-direction:column;"></div>
-        <div id="recentTxnEmpty" style="display:none;"></div>
+      <div class="card" style="padding:0.85rem 1rem;">
+        <div id="recentTxnWidget" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <p id="recentTxnStatText" style="margin:0; font-size:13.5px; font-weight:600; color:var(--ink);"></p>
+            <p id="recentTxnSubText" style="margin:2px 0 0; font-size:12px; color:var(--sub);"></p>
+          </div>
+          <button type="button" id="viewAllTxnsBtn" class="budgetActionBtn" style="white-space:nowrap; padding:8px 14px; font-size:13px;">View All Transactions</button>
+        </div>
       </div>
     </div>
 
@@ -3448,24 +3452,24 @@
       const ratio = monthlySpent / overallBudget;
       if (ratio > 1) {
         scoreColor = '#e5484d';
-        advice = 'Budget exceeded! Pause non-essential spending and adjust category limits.';
+        advice = 'Budget exceeded';
       } else if (ratio >= 0.9) {
         scoreColor = '#e5484d';
-        advice = 'Nearing budget limit. Review remaining items and avoid impulse buys.';
+        advice = 'Nearing budget limit (90%+)';
       } else if (ratio >= 0.75) {
         scoreColor = '#f5a524';
-        advice = 'Used 75%+ of budget. Monitor daily spending pace carefully.';
+        advice = '75%+ budget used';
       } else {
         const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
         const expectedRatio = dayOfMonth / daysInMonth;
         if (ratio > expectedRatio * 1.2) {
           scoreColor = '#f5a524';
-          advice = 'Spending faster than the month is progressing. Consider slowing down.';
+          advice = 'Pace above monthly average';
         }
       }
     } else {
       scoreColor = '#f5a524';
-      advice = 'Set an overall monthly budget to unlock full financial health scoring.';
+      advice = 'Set monthly budget';
     }
 
     if (healthCircle) {
@@ -3731,77 +3735,36 @@
   }
 
   function renderRecentTransactions(){
-    const listEl = document.getElementById('recentTxnList');
-    const emptyEl = document.getElementById('recentTxnEmpty');
-    if(!listEl || !emptyEl) return;
-    listEl.innerHTML = '';
-    if(expenses.length === 0){
-      listEl.style.display = 'none';
-      emptyEl.style.display = 'block';
-      emptyEl.innerHTML = `
-        <div class="emptyState recentTxnEmptyWrap">
-          <div class="emptyIconWrap">
-            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="3" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span>
-          </div>
-          <p class="emptyTitle">No expenses yet</p>
-          <p class="emptyText">Tap the + button to add your first expense.</p>
-          <button type="button" id="recentTxnEmptyAddBtn" class="budgetActionBtn" style="margin-top:14px;">+ Add Expense</button>
-        </div>`;
-      const addBtn = document.getElementById('recentTxnEmptyAddBtn');
-      if(addBtn) addBtn.addEventListener('click', openAddForm);
-      return;
+    const statText = document.getElementById('recentTxnStatText');
+    const subText = document.getElementById('recentTxnSubText');
+    const viewAllBtn = document.getElementById('viewAllTxnsBtn');
+    if(!statText || !subText) return;
+
+    const count = expenses.length;
+    if(count === 0){
+      statText.textContent = 'No transactions recorded yet';
+      subText.textContent = 'Add an expense to start tracking';
+    } else {
+      const latest = expenses.slice().sort((a,b) => {
+        const dateDiff = new Date(b.date) - new Date(a.date);
+        if(dateDiff !== 0) return dateDiff;
+        return Number(b.id) - Number(a.id);
+      })[0];
+      const dateShort = new Date(latest.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+      statText.textContent = `${count} Total Transaction${count === 1 ? '' : 's'}`;
+      subText.textContent = `Latest: ${esc(latest.desc || latest.category)} (${fmt(latest.price)}) on ${dateShort}`;
     }
-    emptyEl.style.display = 'none';
-    emptyEl.innerHTML = '';
-    listEl.style.display = 'flex';
-    const latest = expenses.slice().sort((a,b) => {
-      const dateDiff = new Date(b.date) - new Date(a.date);
-      if(dateDiff !== 0) return dateDiff;
-      return Number(b.id) - Number(a.id);
-    }).slice(0, 5);
-    latest.forEach(e => {
-      const c = catMap[e.category] || {short:'?', color:'#888'};
-      const dateShort = new Date(e.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
-      const recurringBadge = e.source === 'recurring'
-        ? `<span class="recurringIndicator" role="img" aria-label="Recurring expense" title="Recurring expense"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>`
-        : '';
-      const row = document.createElement('div');
-      row.className = 'rowItem';
-      row.innerHTML = `
-        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-          ${avatar(c, 36)}
-          <div style="min-width:0;">
-            <p style="margin:0; font-size:13.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(e.desc) || esc(e.category)}${recurringBadge}</p>
-            <p style="margin:0; font-size:11.5px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(e.category)} • ${dateShort}</p>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
-          <span style="font-size:13.5px; font-weight:500; color:var(--danger); white-space:nowrap; margin-right:2px;">${fmt(e.price)}</span>
-          <button data-id="${e.id}" class="recentTxnEditBtn rowActionBtn editBtn" aria-label="Edit expense">
-            <span class="icon" style="width:15px;height:15px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
-          </button>
-          <button data-id="${e.id}" class="recentTxnDelBtn rowActionBtn deleteBtn" aria-label="Delete expense">
-            <span class="icon" style="width:15px;height:15px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span>
-          </button>
-        </div>`;
-      listEl.appendChild(row);
-    });
-    // Reuse the same openEditForm / openDeleteModal flows used by the main expense list —
-    // no duplicated edit/delete logic, just wired to this section's own buttons.
-    listEl.querySelectorAll('.recentTxnEditBtn').forEach(btn => {
-      btn.addEventListener('click', (e)=>{
-        const id = e.currentTarget.getAttribute('data-id');
-        const exp = expenses.find(x => String(x.id) === id);
-        if(exp) openEditForm(exp);
+
+    if(viewAllBtn && !viewAllBtn.dataset.bound){
+      viewAllBtn.dataset.bound = 'true';
+      viewAllBtn.addEventListener('click', ()=>{
+        if(tabExpense) tabExpense.click();
+        const target = document.getElementById('expenseListView');
+        if(target){
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
       });
-    });
-    listEl.querySelectorAll('.recentTxnDelBtn').forEach(btn => {
-      btn.addEventListener('click', (e)=>{
-        const id = e.currentTarget.getAttribute('data-id');
-        const exp = expenses.find(x => String(x.id) === id);
-        if(exp) openDeleteModal(exp, e.currentTarget);
-      });
-    });
+    }
   }
 
   function renderBudgetCard(){
@@ -5212,8 +5175,8 @@
       if(Number(mb.overall) > 0){
         const spent = getMonthTotal(now.getFullYear(), now.getMonth());
         const pct = (spent / Number(mb.overall)) * 100;
-        if(pct >= 100) insights.push({priority:1, tone:'danger', text:`You are ${fmt(spent - Number(mb.overall))} over your monthly budget.`});
-        else if(pct >= 75) insights.push({priority:8, tone:'warning', text:`You have used ${Math.round(pct)}% of your monthly budget.`});
+        if(pct >= 100) insights.push({priority:1, tone:'danger', text:`Over monthly budget by ${fmt(spent - Number(mb.overall))}`});
+        else if(pct >= 75) insights.push({priority:8, tone:'warning', text:`${Math.round(pct)}% of monthly budget used`});
       }
       if(mb.categories){
         let bestOver = null, bestWarn = null;
@@ -5229,33 +5192,33 @@
             if(!bestWarn || pct > bestWarn.pct) bestWarn = {cat, pct};
           }
         });
-        if(bestOver) insights.push({priority:2, tone:'danger', text:`${bestOver.cat} is ${fmt(bestOver.overAmt)} over its category budget.`});
-        else if(bestWarn) insights.push({priority:9, tone:'warning', text:`${bestWarn.cat} has used ${Math.round(bestWarn.pct)}% of its category budget.`});
+        if(bestOver) insights.push({priority:2, tone:'danger', text:`${bestOver.cat} over category budget (+${fmt(bestOver.overAmt)})`});
+        else if(bestWarn) insights.push({priority:9, tone:'warning', text:`${bestWarn.cat}: ${Math.round(bestWarn.pct)}% category budget used`});
       }
     }
 
     if(comparison && !comparison.noComparison && comparison.previousTotal > 0 && comparison.pctChange !== null && Math.abs(comparison.pctChange) >= 10){
       const dir = comparison.pctChange > 0 ? 'increased' : 'decreased';
-      insights.push({priority:3, tone:'normal', text:`Spending ${dir} ${Math.round(Math.abs(comparison.pctChange))}% compared with the previous period.`});
+      insights.push({priority:3, tone:'normal', text:`Spending ${dir} ${Math.round(Math.abs(comparison.pctChange))}% vs previous period`});
     }
 
     if(metrics.mostSpentCategory && metrics.mostSpentCategory.pct >= 40){
-      insights.push({priority:4, tone:'normal', text:`${metrics.mostSpentCategory.name} accounts for ${Math.round(metrics.mostSpentCategory.pct)}% of your spending in this period.`});
+      insights.push({priority:4, tone:'normal', text:`${metrics.mostSpentCategory.name} accounts for ${Math.round(metrics.mostSpentCategory.pct)}% of period total`});
     }
 
     if(metrics.largestExpense){
       const pct = total > 0 ? (Number(metrics.largestExpense.price) / total) * 100 : 0;
-      if(pct >= 20) insights.push({priority:5, tone:'normal', text:`Your largest expense made up ${Math.round(pct)}% of total spending.`});
+      if(pct >= 20) insights.push({priority:5, tone:'normal', text:`Largest expense: ${Math.round(pct)}% of period total`});
     }
 
     if(metrics.highestDay){
       const pct = total > 0 ? (metrics.highestDay.amount / total) * 100 : 0;
-      if(pct >= 25) insights.push({priority:6, tone:'normal', text:`Your highest-spending day accounted for ${Math.round(pct)}% of this period's spending.`});
+      if(pct >= 25) insights.push({priority:6, tone:'normal', text:`Peak spending day: ${Math.round(pct)}% of period total`});
     }
 
     if(metrics.recurringTotal > 0){
       const pct = (metrics.recurringTotal / total) * 100;
-      if(pct >= 20) insights.push({priority:7, tone:'normal', text:`Recurring expenses account for ${Math.round(pct)}% of spending in this period.`});
+      if(pct >= 20) insights.push({priority:7, tone:'normal', text:`Recurring expenses: ${Math.round(pct)}% of period total`});
     }
 
     if(periodExpenses.length >= 10){
@@ -5264,7 +5227,7 @@
       const smallOnes = periodExpenses.filter(e => Number(e.price) <= threshold && threshold > 0);
       if(smallOnes.length >= 10){
         const smallTotal = smallOnes.reduce((s,e) => s + Number(e.price), 0);
-        if(smallTotal > 0) insights.push({priority:10, tone:'normal', text:`${smallOnes.length} small transactions together added up to ${fmt(smallTotal)} this period.`});
+        if(smallTotal > 0) insights.push({priority:10, tone:'normal', text:`${smallOnes.length} micro-transactions total ${fmt(smallTotal)}`});
       }
     }
 
@@ -7181,55 +7144,55 @@
 
     // 1. RENDER SUMMARY TAB CONTENT
     if (activeAITab === 'daily') {
-      const dailyShare = overallBudget > 0 ? (overallBudget / getDaysInMonth(currentYear, currentMonth)) : 0;
-      const budgetStatus = dailyShare > 0
-        ? (spentToday > dailyShare
-            ? `<span style="color:var(--danger); font-weight:600;">exceeds your daily budget limit of ${formatAIAmount(dailyShare)}</span>`
-            : `<span style="color:var(--success); font-weight:600;">is within your daily budget limit of ${formatAIAmount(dailyShare)}</span>`)
-        : 'is recorded';
-
       summaryPanel.innerHTML = `
-        <div style="background:rgba(124,108,240,0.05); padding:10px; border-radius:12px; margin-bottom:8px;">
-          <strong>Daily Summary:</strong> You spent <strong>${formatAIAmount(spentToday)}</strong> today, which ${budgetStatus}.
-          Yesterday, you spent <strong>${formatAIAmount(spentYesterday)}</strong>.
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">Today</div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(spentToday)}</div>
+          </div>
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">Yesterday</div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(spentYesterday)}</div>
+          </div>
         </div>
       `;
     } else if (activeAITab === 'weekly') {
-      const weeklyDiff = spentThisWeek - spentLastWeek;
-      const trendText = spentLastWeek > 0
-        ? (weeklyDiff > 0
-            ? `<span style="color:var(--danger); font-weight:600;">increased by ${Math.round((weeklyDiff / spentLastWeek) * 100)}%</span>`
-            : `<span style="color:var(--success); font-weight:600;">decreased by ${Math.round(Math.abs(weeklyDiff / spentLastWeek) * 100)}%</span>`)
-        : 'is recorded';
-
       const weeklyTrendData = calculateDailyTrend(expenses, 7);
       const sparklineHtml = generateSparkline(weeklyTrendData);
 
       summaryPanel.innerHTML = `
-        <div style="background:rgba(124,108,240,0.05); padding:10px; border-radius:12px; margin-bottom:8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <strong>Weekly Summary:</strong>
-            <div style="display:flex; align-items:center;">
-              <span style="font-size:11px; color:var(--sub);">7-Day Trend:</span>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">This Week</div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(spentThisWeek)}</div>
+          </div>
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:11px; color:var(--sub);">Last Week</div>
               ${sparklineHtml}
             </div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(spentLastWeek)}</div>
           </div>
-          You spent <strong>${formatAIAmount(spentThisWeek)}</strong> this week compared to <strong>${formatAIAmount(spentLastWeek)}</strong> last week.
-          Your weekly spending has ${trendText}.
         </div>
       `;
     } else if (activeAITab === 'monthly') {
       const savings = overallBudget > 0 ? (overallBudget - spentThisMonth) : 0;
-      const savingsText = overallBudget > 0
+      const savingsHtml = overallBudget > 0
         ? (savings >= 0
-            ? `Estimated current monthly savings: <strong style="color:var(--success);">${formatAIAmount(savings)}</strong>`
-            : `Overspent monthly budget by <strong style="color:var(--danger);">${formatAIAmount(Math.abs(savings))}</strong>`)
-        : 'Set an overall monthly budget to calculate your savings.';
+            ? `<span style="color:var(--success); font-weight:600;">+${formatAIAmount(savings)} saved</span>`
+            : `<span style="color:var(--danger); font-weight:600;">${formatAIAmount(Math.abs(savings))} over budget</span>`)
+        : '<span style="color:var(--sub);">No budget set</span>';
 
       summaryPanel.innerHTML = `
-        <div style="background:rgba(124,108,240,0.05); padding:10px; border-radius:12px; margin-bottom:8px;">
-          <strong>Monthly Summary:</strong> You spent <strong>${formatAIAmount(spentThisMonth)}</strong> this month.
-          <div style="margin-top:6px; font-size:12px; color:var(--sub);">${savingsText}</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">This Month</div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(spentThisMonth)}</div>
+          </div>
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">Savings / Status</div>
+            <div style="font-size:13px; margin-top:2px;">${savingsHtml}</div>
+          </div>
         </div>
       `;
     } else if (activeAITab === 'yearly') {
@@ -7237,9 +7200,15 @@
       const yearlyAvg = spentThisYear / activeMonthsCount;
 
       summaryPanel.innerHTML = `
-        <div style="background:rgba(124,108,240,0.05); padding:10px; border-radius:12px; margin-bottom:8px;">
-          <strong>Yearly Summary:</strong> You spent <strong>${formatAIAmount(spentThisYear)}</strong> in ${currentYear}.
-          Your monthly average burn rate is <strong>${formatAIAmount(yearlyAvg)}</strong> across the last ${activeMonthsCount} months.
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">${currentYear} YTD</div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(spentThisYear)}</div>
+          </div>
+          <div style="background:rgba(124,108,240,0.06); padding:8px 10px; border-radius:10px;">
+            <div style="font-size:11px; color:var(--sub);">Monthly Burn Rate</div>
+            <div style="font-size:14px; font-weight:700; color:var(--ink);">${formatAIAmount(yearlyAvg)}</div>
+          </div>
         </div>
       `;
     }
@@ -7252,11 +7221,11 @@
       const MoMDiff = spentThisMonth - spentLastMonth;
       const MoMPct = Math.round((MoMDiff / spentLastMonth) * 100);
       if (MoMPct < 0) {
-        insights.push(`📉 You spent <strong>${Math.abs(MoMPct)}% less</strong> than last month.`);
+        insights.push(`📉 Spent <strong>${Math.abs(MoMPct)}% less</strong> than last month (${formatAIAmount(spentThisMonth)} vs ${formatAIAmount(spentLastMonth)})`);
       } else if (MoMPct > 0) {
-        insights.push(`📈 You spent <strong>${MoMPct}% more</strong> than last month.`);
+        insights.push(`📈 Spent <strong>${MoMPct}% more</strong> than last month (${formatAIAmount(spentThisMonth)} vs ${formatAIAmount(spentLastMonth)})`);
       } else {
-        insights.push(`📊 Your spending is exactly the same as last month.`);
+        insights.push(`📊 Monthly spending identical to last month`);
       }
     }
 
@@ -7274,12 +7243,12 @@
       }
     });
     if (topCategory) {
-      insights.push(`🛍️ <strong>${topCategory}</strong> is your biggest expense this month, totaling <strong>${formatAIAmount(maxCategoryAmt)}</strong>.`);
+      insights.push(`🛍️ <strong>${topCategory}</strong> is top category: <strong>${formatAIAmount(maxCategoryAmt)}</strong>`);
     }
 
     // Savings summary
     if (overallBudget > 0 && spentThisMonth < overallBudget) {
-      insights.push(`💰 You saved <strong>${formatAIAmount(overallBudget - spentThisMonth)}</strong> this month so far.`);
+      insights.push(`💰 Current monthly savings: <strong>${formatAIAmount(overallBudget - spentThisMonth)}</strong>`);
     }
 
     // Category increase comparison (Shopping or food increase check)
@@ -7300,7 +7269,7 @@
       }
     });
     if (topGrowthCategory && maxGrowthPct >= 10) {
-      insights.push(`⚠️ spending on <strong>${topGrowthCategory}</strong> increased by <strong>${Math.round(maxGrowthPct)}%</strong> compared to last month.`);
+      insights.push(`⚠️ <strong>${topGrowthCategory}</strong> spend up <strong>+${Math.round(maxGrowthPct)}%</strong> MoM`);
     }
 
     // General trend direction (14-day window review)
@@ -7308,9 +7277,9 @@
     const first7Total = recent14Data.slice(0, 7).reduce((a, b) => a + b, 0);
     const last7Total = recent14Data.slice(7).reduce((a, b) => a + b, 0);
     if (last7Total < first7Total * 0.9) {
-      insights.push(`✨ <strong>Your spending trend is improving.</strong> You spent less in the last 7 days than the preceding week.`);
+      insights.push(`✨ <strong>Spending trend improving:</strong> 7-day velocity down`);
     } else if (last7Total > first7Total * 1.1) {
-      insights.push(`⚠️ Your spending velocity is accelerating. Keep an eye on non-essential categories.`);
+      insights.push(`⚠️ <strong>Spending velocity accelerating:</strong> 7-day velocity up`);
     }
 
     // Render insights
@@ -7327,7 +7296,7 @@
     const avgDailyVelocity = spentThisMonth / dayOfMonth;
     const projectedMonthEnd = avgDailyVelocity * totalDays;
 
-    predictions.push(`🔮 <strong>EOM Spend Projection:</strong> Based on your daily pace, you will spend <strong>${formatAIAmount(projectedMonthEnd)}</strong> by the end of the month.`);
+    predictions.push(`🔮 <strong>EOM Spend Projection:</strong> <strong>${formatAIAmount(projectedMonthEnd)}</strong>`);
 
     if (overallBudget > 0) {
       if (projectedMonthEnd > overallBudget) {
@@ -7335,15 +7304,15 @@
         const daysToDepletion = avgDailyVelocity > 0 ? Math.floor(remainingBudget / avgDailyVelocity) : 0;
         const depletionDate = new Date(); depletionDate.setDate(now.getDate() + daysToDepletion);
         const depletionDateStr = depletionDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-        predictions.push(`🚨 <strong>Budget Completion:</strong> Your budget will be fully consumed in approx <strong>${daysToDepletion} days</strong> (around <strong>${depletionDateStr}</strong>).`);
-        predictions.push(`📉 <strong>Savings Estimate:</strong> Projected monthly overspent limit: <strong>${formatAIAmount(projectedMonthEnd - overallBudget)}</strong>.`);
+        predictions.push(`🚨 <strong>Budget Depletion:</strong> ~${daysToDepletion} days left (${depletionDateStr})`);
+        predictions.push(`📉 <strong>Projected Deficit:</strong> ${formatAIAmount(projectedMonthEnd - overallBudget)} over budget`);
       } else {
         const projectedSurplus = overallBudget - projectedMonthEnd;
-        predictions.push(`🎉 <strong>Budget Completion:</strong> You are on track to stay within your budget limit.`);
-        predictions.push(`💰 <strong>Savings Estimate:</strong> Projected surplus at EOM: <strong style="color:var(--success);">${formatAIAmount(projectedSurplus)}</strong>.`);
+        predictions.push(`🎉 <strong>On Track:</strong> Within monthly budget limit`);
+        predictions.push(`💰 <strong>Projected Surplus:</strong> <strong style="color:var(--success);">${formatAIAmount(projectedSurplus)}</strong>`);
       }
     } else {
-      predictions.push(`💰 Set a monthly overall budget to unlock depletion timelines & savings projections.`);
+      predictions.push(`💰 Set a monthly budget to unlock projections`);
     }
 
     // Render predictions
@@ -7362,28 +7331,28 @@
           const overageText = catSpent > catBudget
             ? `exceeded by ${formatAIAmount(catSpent - catBudget)}`
             : `nearing budget limits (${Math.round((catSpent/catBudget)*100)}% used)`;
-          recommendations.push(`⚠️ Your <strong>${cat}</strong> budget is ${overageText}. Avoid discretionary purchases in this category.`);
+          recommendations.push(`⚠️ <strong>${cat}</strong> budget ${overageText}`);
         }
       });
     }
 
     // If Food is top spending category
     if (topCategory === 'Food' && maxCategoryAmt > spentThisMonth * 0.25) {
-      recommendations.push(`🍔 Food is your leading expense category. Planning meals or eating at home can help save money.`);
+      recommendations.push(`🍔 <strong>Food</strong> is top expense category (${Math.round((maxCategoryAmt/spentThisMonth)*100)}% of total)`);
     }
 
     // General high spend recommendation
     if (spentToday > avgDailyVelocity * 1.5 && spentToday > 100) {
-      recommendations.push(`💡 Today's spending was higher than your daily average. Try a 'no-spend' day tomorrow to balance it out.`);
+      recommendations.push(`💡 Today's spending (${formatAIAmount(spentToday)}) is 50%+ above daily average`);
     }
 
     // Saving recommendation
     if (overallBudget > 0 && spentThisMonth < overallBudget * 0.5 && dayOfMonth > 15) {
-      recommendations.push(`🌟 You have used less than half of your budget and the month is more than halfway done! Consider directing extra savings to investment accounts.`);
+      recommendations.push(`🌟 Under 50% budget consumed with 50%+ of month elapsed`);
     }
 
     if (recommendations.length === 0) {
-      recommendations.push(`✨ Your spending is aligned and stable. Continue tracking daily to maintain active analysis!`);
+      recommendations.push(`✨ Spending aligned and stable`);
     }
 
     // Render recommendations
