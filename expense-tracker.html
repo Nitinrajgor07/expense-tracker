@@ -3165,28 +3165,53 @@
   function pad2(n){ return String(n).padStart(2,'0'); }
   function monthKeyFor(year, month){ return year + '-' + pad2(month+1); }
   function currentMonthKey(){ const d = new Date(); return monthKeyFor(d.getFullYear(), d.getMonth()); }
-  function getCurrentMonthBudget(){
-    const mb = budgets[currentMonthKey()];
+  function getBudgetForMonth(year, month){
+    const key = monthKeyFor(year, month);
+    const mb = budgets[key];
     return mb ? { overall: Number(mb.overall) || 0, categories: mb.categories || {} } : { overall: 0, categories: {} };
+  }
+  function getCurrentMonthBudget(){
+    const activeYear = (typeof viewYear !== 'undefined') ? viewYear : new Date().getFullYear();
+    const activeMonth = (typeof viewMonth !== 'undefined') ? viewMonth : new Date().getMonth();
+    return getBudgetForMonth(activeYear, activeMonth);
   }
   function getMonthTotal(year, month){
     let total = 0;
+    const key = monthKeyFor(year, month);
     expenses.forEach(e => {
-      const d = new Date(e.date);
-      if(d.getFullYear() === year && d.getMonth() === month) total += Number(e.price);
+      if(e && e.date){
+        if(e.date.startsWith(key)) total += Number(e.price) || 0;
+        else {
+          const d = parseLocalDate(e.date);
+          if(d.getFullYear() === year && d.getMonth() === month) total += Number(e.price) || 0;
+        }
+      }
     });
     return total;
   }
   function getMonthCategoryTotal(year, month, category){
     let total = 0;
+    const key = monthKeyFor(year, month);
     expenses.forEach(e => {
-      if(e.category !== category) return;
-      const d = new Date(e.date);
-      if(d.getFullYear() === year && d.getMonth() === month) total += Number(e.price);
+      if(!e || e.category !== category) return;
+      if(e.date){
+        if(e.date.startsWith(key)) total += Number(e.price) || 0;
+        else {
+          const d = parseLocalDate(e.date);
+          if(d.getFullYear() === year && d.getMonth() === month) total += Number(e.price) || 0;
+        }
+      }
     });
     return total;
   }
   function budgetState(pct){ return pct >= 100 ? 'danger' : pct >= 75 ? 'warning' : 'normal'; }
+  function formatPercent(pct){
+    if (isNaN(pct) || !isFinite(pct) || pct <= 0) return '0%';
+    const rounded = Math.round(pct * 100) / 100;
+    if (rounded % 1 === 0) return rounded.toFixed(0) + '%';
+    if ((rounded * 10) % 1 === 0) return rounded.toFixed(1) + '%';
+    return rounded.toFixed(2) + '%';
+  }
 
   /* ---- Phase 7: local-date-safe recurrence helpers ---- */
   function parseLocalDate(s){
@@ -3769,16 +3794,22 @@
 
   function renderBudgetCard(){
     if(!budgetCardEl) return;
-    const now = new Date();
-    const mb = getCurrentMonthBudget();
-    const overall = Number(mb.overall) || 0;
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const activeYear = (typeof viewYear !== 'undefined') ? viewYear : new Date().getFullYear();
+    const activeMonth = (typeof viewMonth !== 'undefined') ? viewMonth : new Date().getMonth();
+    const monthLabelText = monthNames[activeMonth] + ' ' + activeYear;
 
-    if(overall <= 0){
+    const mb = getBudgetForMonth(activeYear, activeMonth);
+    const overall = Number(mb.overall) || 0;
+    const catBudgets = mb.categories || {};
+    const hasCategoryBudgets = Object.keys(catBudgets).some(cat => Number(catBudgets[cat]) > 0);
+
+    if (overall <= 0 && !hasCategoryBudgets) {
       budgetCardEl.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
           <div style="min-width:0;">
             <p class="budgetCardTitle">Monthly Budget</p>
-            <p class="budgetCardSub">No budget set</p>
+            <p class="budgetCardSub">${monthLabelText} • No budget set</p>
           </div>
           <button id="setBudgetBtn" class="budgetActionBtn">Set Budget</button>
         </div>`;
@@ -3787,27 +3818,113 @@
       return;
     }
 
-    const spent = getMonthTotal(now.getFullYear(), now.getMonth());
-    const pct = (spent / overall) * 100;
+    const spent = getMonthTotal(activeYear, activeMonth);
+    const isOverBudget = overall > 0 && spent > overall;
+    const remaining = isOverBudget ? 0 : Math.max(0, overall - spent);
+    const overBudgetAmt = isOverBudget ? (spent - overall) : 0;
+    const pct = overall > 0 ? (spent / overall) * 100 : 0;
     const cappedPct = Math.min(pct, 100);
-    const state = budgetState(pct);
-    const remaining = overall - spent;
-    const footRight = remaining >= 0
-      ? `${fmt(remaining)} remaining`
-      : `<span class="danger-text">${fmt(Math.abs(remaining))} overspent</span>`;
-    const pillIcon = state === 'normal' ? '' : '⚠ ';
+    const state = overall > 0 ? budgetState(pct) : (spent > 0 ? 'warning' : 'normal');
+
+    let catSummaryRowsHtml = '';
+    categories.forEach(c => {
+      const cBudget = Number(catBudgets[c.name]) || 0;
+      const cSpent = getMonthCategoryTotal(activeYear, activeMonth, c.name);
+      const cIsOver = cBudget > 0 && cSpent > cBudget;
+      const cRemaining = cIsOver ? 0 : Math.max(0, cBudget - cSpent);
+      const cOverAmt = cIsOver ? (cSpent - cBudget) : 0;
+      const cPct = cBudget > 0 ? (cSpent / cBudget) * 100 : 0;
+      const cCappedPct = Math.min(cPct, 100);
+      const cState = cBudget > 0 ? budgetState(cPct) : (cSpent > 0 ? 'warning' : 'normal');
+
+      let remainingDisplayHtml = `${fmt(cRemaining)}`;
+      if (cIsOver) {
+        remainingDisplayHtml = `<span class="danger-text">₹0</span> <span style="font-size:10px; color:var(--danger); font-weight:600; display:block;">Over budget by ${fmt(cOverAmt)}</span>`;
+      }
+
+      catSummaryRowsHtml += `
+        <div class="budgetCatSummaryCard" style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:10px 12px; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${avatar(c, 24)}
+              <span style="font-size:13.5px; font-weight:600; color:var(--ink);">${c.name}</span>
+            </div>
+            <span class="budgetStatusPill ${cState}" style="font-size:10.5px; padding:2px 8px;">${cBudget > 0 ? formatPercent(cPct) : (cSpent > 0 ? 'Unbudgeted' : '0%')}</span>
+          </div>
+          
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; font-size:11px; margin-bottom:6px;">
+            <div>
+              <span style="color:var(--sub); display:block; font-size:10px;">Budget</span>
+              <span style="font-weight:600; color:var(--ink);">${fmt(cBudget)}</span>
+            </div>
+            <div>
+              <span style="color:var(--sub); display:block; font-size:10px;">Used</span>
+              <span style="font-weight:600; color:var(--ink);">${fmt(cSpent)}</span>
+            </div>
+            <div>
+              <span style="color:var(--sub); display:block; font-size:10px;">Remaining</span>
+              <span style="font-weight:600; color:${cIsOver ? 'var(--danger)' : 'var(--ink)'};">${remainingDisplayHtml}</span>
+            </div>
+            <div>
+              <span style="color:var(--sub); display:block; font-size:10px;">Usage %</span>
+              <span style="font-weight:600; color:var(--ink);">${cBudget > 0 ? formatPercent(cPct) : '0%'}</span>
+            </div>
+          </div>
+          
+          ${cBudget > 0 ? `<div class="budgetProgressTrack small" style="margin-top:4px;"><div class="budgetProgressFill ${cState}" style="width:${cCappedPct}%;"></div></div>` : ''}
+        </div>`;
+    });
+
+    const remainingMetricHtml = isOverBudget
+      ? `<p style="margin:4px 0 0; font-size:15px; font-weight:700; color:var(--danger);">₹0</p>
+         <p style="margin:2px 0 0; font-size:10.5px; font-weight:600; color:var(--danger);">Over budget by ${fmt(overBudgetAmt)}</p>`
+      : `<p style="margin:4px 0 0; font-size:15px; font-weight:700; color:var(--ink);">${fmt(remaining)}</p>`;
 
     budgetCardEl.innerHTML = `
-      <div class="budgetCardHead">
-        <p class="budgetCardTitle">Monthly Budget</p>
+      <div class="budgetCardHead" style="margin-bottom:12px;">
+        <div>
+          <p class="budgetCardTitle">Monthly Budget</p>
+          <p class="budgetCardSub" style="margin:2px 0 0; font-size:12px; color:var(--sub);">${monthLabelText}</p>
+        </div>
         <button id="manageBudgetBtn" class="budgetManageLink">Manage</button>
       </div>
-      <p class="budgetCardAmt">${fmt(spent)} <span class="budgetCardOf">spent of ${fmt(overall)}</span></p>
-      <div class="budgetProgressTrack"><div class="budgetProgressFill ${state}" style="width:${cappedPct}%;"></div></div>
-      <div class="budgetCardFoot">
-        <span>${footRight}</span>
-        <span class="budgetStatusPill ${state}" aria-label="${Math.round(pct)} percent of monthly budget used${state !== 'normal' ? ', ' + (state === 'danger' ? 'over budget' : 'nearing limit') : ''}">${pillIcon}${Math.round(pct)}% used</span>
+
+      <div class="budgetSummaryGrid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-bottom:12px;">
+        <div style="background:var(--accent-soft); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
+          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Total Budget</span>
+          <span style="font-size:15px; font-weight:700; color:var(--ink); display:block; margin-top:2px;">${fmt(overall)}</span>
+        </div>
+        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
+          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Used</span>
+          <span style="font-size:15px; font-weight:700; color:var(--ink); display:block; margin-top:2px;">${fmt(spent)}</span>
+        </div>
+        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
+          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Remaining</span>
+          ${remainingMetricHtml}
+        </div>
+        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
+          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Usage</span>
+          <span style="font-size:15px; font-weight:700; color:${state === 'danger' ? 'var(--danger)' : state === 'warning' ? '#a3660c' : 'var(--ink)'}; display:block; margin-top:2px;">${overall > 0 ? formatPercent(pct) : '0%'}</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--sub); margin-bottom:4px;">
+          <span>Progress bar</span>
+          <span style="font-weight:600; color:var(--ink);">${fmt(spent)} / ${fmt(overall)}</span>
+        </div>
+        <div class="budgetProgressTrack"><div class="budgetProgressFill ${state}" style="width:${cappedPct}%;"></div></div>
+      </div>
+
+      <div style="border-top:1px solid var(--glass-border); padding-top:12px; margin-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <p style="margin:0; font-size:13px; font-weight:600; color:var(--ink);">Category Budget Summary</p>
+        </div>
+        <div class="budgetCatSummaryList">
+          ${catSummaryRowsHtml}
+        </div>
       </div>`;
+
     const btn = document.getElementById('manageBudgetBtn');
     if(btn) btn.addEventListener('click', openBudgetModal);
   }
@@ -4272,33 +4389,39 @@
   }
 
   document.getElementById('prevMonth').addEventListener('click', ()=>{
-    viewMonth -= 1; if(viewMonth < 0){ viewMonth = 11; viewYear -= 1; } openDay = null; renderDaywise();
+    viewMonth -= 1; if(viewMonth < 0){ viewMonth = 11; viewYear -= 1; } openDay = null; renderDaywise(); renderBudgetCard(); updateTopCards();
   });
   document.getElementById('nextMonth').addEventListener('click', ()=>{
-    viewMonth += 1; if(viewMonth > 11){ viewMonth = 0; viewYear += 1; } openDay = null; renderDaywise();
+    viewMonth += 1; if(viewMonth > 11){ viewMonth = 0; viewYear += 1; } openDay = null; renderDaywise(); renderBudgetCard(); updateTopCards();
   });
 
   function renderCategoryBudgetRows(){
-    const now = new Date();
+    const activeYear = (typeof viewYear !== 'undefined') ? viewYear : new Date().getFullYear();
+    const activeMonth = (typeof viewMonth !== 'undefined') ? viewMonth : new Date().getMonth();
     categoryBudgetList.innerHTML = '';
     categories.forEach(c => {
       const savedBudget = Number(savedCategoryBudgets[c.name]) || 0;
       const draftVal = budgetDraft.categories[c.name];
       const inputVal = (draftVal !== undefined && draftVal !== null) ? draftVal : '';
+      const spent = getMonthCategoryTotal(activeYear, activeMonth, c.name);
+      
       let progressHtml = '';
-      if(savedBudget > 0){
-        const spent = getMonthCategoryTotal(now.getFullYear(), now.getMonth(), c.name);
-        const pct = (spent / savedBudget) * 100;
+      if(savedBudget > 0 || spent > 0){
+        const pct = savedBudget > 0 ? (spent / savedBudget) * 100 : 100;
         const capped = Math.min(pct, 100);
-        const state = budgetState(pct);
+        const state = savedBudget > 0 ? budgetState(pct) : 'danger';
         const pillIcon = state === 'normal' ? '' : '⚠ ';
+        const isOver = savedBudget > 0 && spent > savedBudget;
+        const remaining = isOver ? 0 : Math.max(0, savedBudget - spent);
+        const overAmt = isOver ? (spent - savedBudget) : 0;
+        
         progressHtml = `
-          <div class="categoryBudgetProgress">
-            <div class="budgetProgressTrack small"><div class="budgetProgressFill ${state}" style="width:${capped}%;"></div></div>
-            <div class="categoryBudgetMeta">
-              <span>${fmt(spent)} of ${fmt(savedBudget)}</span>
-              <span class="budgetStatusPill ${state}" aria-label="${Math.round(pct)} percent used${state !== 'normal' ? ', ' + (state === 'danger' ? 'over budget' : 'nearing limit') : ''}">${pillIcon}${Math.round(pct)}%</span>
+          <div class="categoryBudgetProgress" style="margin-top:6px;">
+            <div class="categoryBudgetMeta" style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--sub); margin-bottom:3px;">
+              <span>Used: ${fmt(spent)} | Remaining: ${isOver ? `<strong class="danger-text">₹0 (Over by ${fmt(overAmt)})</strong>` : fmt(remaining)}</span>
+              <span class="budgetStatusPill ${state}">${pillIcon}${savedBudget > 0 ? formatPercent(pct) : 'Unbudgeted'}</span>
             </div>
+            ${savedBudget > 0 ? `<div class="budgetProgressTrack small"><div class="budgetProgressFill ${state}" style="width:${capped}%;"></div></div>` : ''}
           </div>`;
       }
       const row = document.createElement('div');
@@ -4329,13 +4452,14 @@
   }
 
   function openBudgetModal(){
-    const now = new Date();
-    const mb = getCurrentMonthBudget();
+    const activeYear = (typeof viewYear !== 'undefined') ? viewYear : new Date().getFullYear();
+    const activeMonth = (typeof viewMonth !== 'undefined') ? viewMonth : new Date().getMonth();
+    const mb = getBudgetForMonth(activeYear, activeMonth);
     budgetDraft = { overall: Number(mb.overall) || 0, categories: {...(mb.categories || {})} };
     savedCategoryBudgets = {...(mb.categories || {})};
     overallBudgetInput.value = budgetDraft.overall ? budgetDraft.overall : '';
     const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    budgetModalMonth.textContent = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+    budgetModalMonth.textContent = monthNames[activeMonth] + ' ' + activeYear;
     renderCategoryBudgetRows();
     if(moreMenu) moreMenu.classList.remove('show');
     app.modalManager.open('budgetModal');
@@ -4356,7 +4480,9 @@
   budgetSaveBtn.addEventListener('click', ()=>{
     if(isSubmitting) return;
     
-    const key = currentMonthKey();
+    const activeYear = (typeof viewYear !== 'undefined') ? viewYear : new Date().getFullYear();
+    const activeMonth = (typeof viewMonth !== 'undefined') ? viewMonth : new Date().getMonth();
+    const key = monthKeyFor(activeYear, activeMonth);
     const cleanCategories = {};
     let catInvalid = false;
     
