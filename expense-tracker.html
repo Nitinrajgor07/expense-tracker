@@ -1432,20 +1432,7 @@
       </div>
     </div>
 
-    <div id="recentTxnSection" class="recentTxnSection riseIn" style="animation-delay:.08s;">
-      <div class="sectionHeader">
-        <span class="sectionHeaderTitle">Recent Transactions</span>
-      </div>
-      <div class="card" style="padding:0.85rem 1rem;">
-        <div id="recentTxnWidget" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <div>
-            <p id="recentTxnStatText" style="margin:0; font-size:13.5px; font-weight:600; color:var(--ink);"></p>
-            <p id="recentTxnSubText" style="margin:2px 0 0; font-size:12px; color:var(--sub);"></p>
-          </div>
-          <button type="button" id="viewAllTxnsBtn" class="budgetActionBtn" style="white-space:nowrap; padding:8px 14px; font-size:13px;">View All Transactions</button>
-        </div>
-      </div>
-    </div>
+
 
     <div class="card todaySpendCard riseIn" id="todaySpendCard" style="animation-delay:.11s;">
       <div style="min-width:0;">
@@ -1496,26 +1483,7 @@
     <div class="quickOverviewSection riseIn" id="fintechMetricsSection" style="animation-delay:.15s; margin-top: 1rem; margin-bottom: 1rem;">
       <p class="quickOverviewTitle">Fintech Dashboard</p>
       
-      <!-- Financial Health Score Card -->
-      <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; padding: 1.1rem;">
-        <div style="min-width:0; flex:1;">
-          <p class="budgetCardTitle" style="font-size:14px; margin:0;">Financial Health Score</p>
-          <p id="healthScoreAdvice" style="margin:4px 0 0; font-size:12px; color:var(--sub); line-height:1.35;"></p>
-        </div>
-        <div style="position:relative; width:64px; height:64px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
-          <svg viewBox="0 0 80 80" width="64" height="64" style="transform: rotate(-90deg);" role="img" aria-label="Financial health score ring">
-            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(124,108,240,0.12)" stroke-width="7"/>
-            <circle id="healthScoreCircle" cx="40" cy="40" r="34" fill="none" stroke="#18a367" stroke-width="7" stroke-linecap="round" stroke-dasharray="213.63" stroke-dashoffset="213.63" style="transition: stroke-dashoffset .6s ease, stroke .3s ease;"/>
-          </svg>
-          <span id="healthScoreText" style="position:absolute; font-size:14px; font-weight:700; color:var(--ink);">85</span>
-        </div>
-      </div>
 
-      <!-- Dashboard Insights Card -->
-      <div class="card" id="dashboardInsightsCard" style="display:none; margin-bottom:12px; padding:1rem;">
-        <p class="budgetCardTitle" style="font-size:13.5px; margin:0 0 8px;">Smart Insights</p>
-        <div id="dashboardInsightsList" style="display:flex; flex-direction:column; gap:8px;"></div>
-      </div>
 
       <!-- Fintech Grid of 8 Metrics -->
       <div class="quickOverviewGrid" style="grid-template-columns: repeat(2, 1fr); gap:8px;">
@@ -1555,18 +1523,7 @@
             <p id="ftMonthlySavings" class="qoValue">—</p>
           </div>
         </div>
-        <div class="card qoCard" style="grid-column: span 2; padding: 0.75rem 0.8rem;">
-          <div class="qoText">
-            <p class="qoLabel">Highest Category</p>
-            <p id="ftHighestCat" class="qoValue" style="font-size:13.5px; white-space:normal; overflow:visible;"></p>
-          </div>
-        </div>
-        <div class="card qoCard" style="grid-column: span 2; padding: 0.75rem 0.8rem;">
-          <div class="qoText">
-            <p class="qoLabel">Lowest Category</p>
-            <p id="ftLowestCat" class="qoValue" style="font-size:13.5px; white-space:normal; overflow:visible;"></p>
-          </div>
-        </div>
+
       </div>
     </div>
 
@@ -1615,6 +1572,7 @@
     <div id="activeFilterChips" class="activeFilterChips"></div>
 
     <div id="expenseListView">
+      <div id="recentPeriodRow" class="periodChipsRow" role="group" aria-label="Select period for expenses" style="margin-bottom:0.85rem;"></div>
       <div class="sectionHeader">
         <div style="min-width:0;">
           <span class="sectionHeaderTitle">Recent Expenses</span>
@@ -2299,6 +2257,8 @@
     {key:'thisYear', label:'This Year'},
     {key:'allTime', label:'All Time'}
   ];
+  let selectedRecentPeriod = null;
+  const recentPeriodsList = analyticsPeriodsList;
   const KEY = 'expense_tracker_data';
   const BUDGET_KEY = 'expense_tracker_budgets';
   const RECURRING_KEY = 'expense_tracker_recurring';
@@ -3970,9 +3930,65 @@
     activeFilterChips.appendChild(clearBtn);
   }
 
+  function getRecentPeriodDateRange(period){
+    const today = new Date();
+    let start, end;
+    switch(period){
+      case 'thisMonth':
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        break;
+      case 'lastMonth':
+        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        end = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+      case 'last3Months':
+        start = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        break;
+      case 'last6Months':
+        start = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        break;
+      case 'thisYear':
+        start = new Date(today.getFullYear(), 0, 1);
+        end = new Date(today.getFullYear(), 11, 31);
+        break;
+      case 'allTime':
+      default:
+        return { startDate: null, endDate: null };
+    }
+    return { startDate: formatLocalDate(start), endDate: formatLocalDate(end) };
+  }
+
+  function renderRecentPeriodChips(){
+    const el = document.getElementById('recentPeriodRow');
+    if(!el) return;
+    el.innerHTML = '';
+    recentPeriodsList.forEach(p => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'periodChip' + (selectedRecentPeriod === p.key ? ' selected' : '');
+      chip.textContent = p.label;
+      chip.setAttribute('aria-pressed', selectedRecentPeriod === p.key ? 'true' : 'false');
+      chip.addEventListener('click', ()=>{
+        if(selectedRecentPeriod === p.key) return;
+        selectedRecentPeriod = p.key;
+        renderRecentPeriodChips();
+        renderList();
+      });
+      el.appendChild(chip);
+    });
+  }
+
   function applyExpenseFilters(){
     const q = (search.value || '').trim().toLowerCase();
+    const pRange = selectedRecentPeriod ? getRecentPeriodDateRange(selectedRecentPeriod) : null;
     let result = expenses.filter(e => {
+      if(pRange){
+        if(pRange.startDate && e.date < pRange.startDate) return false;
+        if(pRange.endDate && e.date > pRange.endDate) return false;
+      }
       if(q){
         const matchesDesc = (e.desc || '').toLowerCase().includes(q);
         const matchesCat = (e.category || '').toLowerCase().includes(q);
@@ -4050,6 +4066,23 @@
   function renderList(){
     updateFilterButtonUI();
     renderActiveFilterChips();
+    renderRecentPeriodChips();
+
+    if(selectedRecentPeriod === null){
+      list.innerHTML = '';
+      if(resultsCount) resultsCount.textContent = 'Select a period';
+      totalAmt.textContent = fmt(0);
+      empty.style.display = 'block';
+      empty.innerHTML = `
+        <div class="emptyState">
+          <div class="emptyIconWrap">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></span>
+          </div>
+          <p class="emptyTitle">Select a period to view expenses</p>
+          <p class="emptyText">Choose a time period filter above to view your transactions.</p>
+        </div>`;
+      return;
+    }
 
     const sorted = applyExpenseFilters();
     list.innerHTML = '';
@@ -4059,7 +4092,7 @@
     const totalCount = expenses.length;
     const visibleCount = sorted.length;
     if(resultsCount){
-      resultsCount.textContent = (searchActive || filtersActive)
+      resultsCount.textContent = (searchActive || filtersActive || selectedRecentPeriod)
         ? `${visibleCount} of ${totalCount} expenses`
         : `${totalCount} expense${totalCount === 1 ? '' : 's'}`;
     }
@@ -8513,11 +8546,13 @@
     }
 
     // Update bell badge counter
-    if (activeNotifications.length > 0) {
-      notifBadgeCount.style.display = 'flex';
-      notifBadgeCount.textContent = activeNotifications.length;
-    } else {
-      notifBadgeCount.style.display = 'none';
+    if (notifBadgeCount) {
+      if (activeNotifications.length > 0) {
+        notifBadgeCount.style.display = 'flex';
+        notifBadgeCount.textContent = activeNotifications.length;
+      } else {
+        notifBadgeCount.style.display = 'none';
+      }
     }
   }
 
