@@ -2058,24 +2058,36 @@
 </div>
 
 <div id="budgetModal" class="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="budgetModalTitle">
-  <div class="modalSheet budgetSheet">
+  <div class="modalSheet budgetSheet" style="max-width:520px;">
     <div class="budgetSheetHeader">
-      <p class="modalTitle" id="budgetModalTitle">Manage Budget</p>
-      <p class="modalMessage" id="budgetModalMonth">July 2026</p>
-    </div>
-    <div class="budgetSheetScroll">
-      <div id="modalBudgetSummary"></div>
-      <div class="fieldGroup">
-        <label class="fieldLabel" for="overallBudgetInput">Overall Monthly Budget</label>
-        <div class="overallBudgetWrap">
-          <span class="overallBudgetCurrency" aria-hidden="true">₹</span>
-          <input id="overallBudgetInput" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" aria-label="Overall monthly budget" />
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <p class="modalTitle" id="budgetModalTitle" style="font-size:18px; font-weight:700; color:var(--ink); margin:0;">Manage Budget</p>
+          <p class="modalMessage" id="budgetModalMonth" style="margin:2px 0 0; font-size:12.5px; color:var(--sub); font-weight:500;"></p>
+        </div>
+        <div style="width:36px; height:36px; border-radius:50%; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; color:var(--accent); flex-shrink:0;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </div>
       </div>
-      <p class="fieldLabel" style="margin-top:10px;">Category Budgets</p>
+    </div>
+    <div class="budgetSheetScroll" style="padding-right:4px;">
+      <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:14px; padding:12px 14px; margin-bottom:14px;">
+        <label class="fieldLabel" for="overallBudgetInput" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); margin-bottom:6px; display:block;">Overall Monthly Budget</label>
+        <div class="overallBudgetWrap" style="position:relative;">
+          <span class="overallBudgetCurrency" aria-hidden="true" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-weight:700; color:var(--accent); font-size:16px; pointer-events:none;">₹</span>
+          <input id="overallBudgetInput" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Enter overall budget" aria-label="Overall monthly budget" style="width:100%; padding:10px 14px 10px 34px; border-radius:10px; border:1px solid var(--glass-border); background:var(--bg); font-size:15px; font-weight:600; color:var(--ink); box-shadow:none; outline:none;" />
+        </div>
+      </div>
+
+      <div id="modalBudgetSummary" style="margin-bottom:14px;"></div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <p class="fieldLabel" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); margin:0;">Category Budgets</p>
+        <span style="font-size:11px; color:var(--sub);">Set limits per category</span>
+      </div>
       <div id="categoryBudgetList" class="categoryBudgetList"></div>
     </div>
-    <div class="modalActions">
+    <div class="modalActions" style="margin-top:12px;">
       <button id="budgetCancelBtn" class="modalBtn modalBtnGhost" aria-label="Cancel budget changes">Cancel</button>
       <button id="budgetSaveBtn" class="modalBtn modalBtnPrimary" aria-label="Save budget">Save Budget</button>
     </div>
@@ -3767,12 +3779,15 @@
 
     if (overall <= 0 && !hasCategoryBudgets) {
       budgetCardEl.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:2px 0;">
           <div style="min-width:0;">
-            <p class="budgetCardTitle">Monthly Budget</p>
-            <p class="budgetCardSub">${monthLabelText} • No budget set</p>
+            <div style="display:flex; align-items:center; gap:7px;">
+              <span style="font-size:15px;">🎯</span>
+              <p class="budgetCardTitle" style="font-size:15px; font-weight:700; color:var(--ink); margin:0;">Monthly Budget</p>
+            </div>
+            <p class="budgetCardSub" style="margin:3px 0 0; font-size:12px; color:var(--sub); font-weight:500;">${monthLabelText} • No budget set</p>
           </div>
-          <button id="setBudgetBtn" class="budgetActionBtn">Set Budget</button>
+          <button id="setBudgetBtn" class="budgetActionBtn" style="white-space:nowrap; padding:7px 16px; border-radius:20px; font-size:12.5px; font-weight:600;">Set Budget</button>
         </div>`;
       const btn = document.getElementById('setBudgetBtn');
       if(btn) btn.addEventListener('click', openBudgetModal);
@@ -3788,44 +3803,52 @@
     const state = overall > 0 ? budgetState(pct) : (spent > 0 ? 'warning' : 'normal');
 
     const remainingMetricHtml = isOverBudget
-      ? `<p style="margin:4px 0 0; font-size:15px; font-weight:700; color:var(--danger);">₹0</p>
-         <p style="margin:2px 0 0; font-size:10.5px; font-weight:600; color:var(--danger);">Over budget by ${fmt(overBudgetAmt)}</p>`
-      : `<p style="margin:4px 0 0; font-size:15px; font-weight:700; color:var(--ink);">${fmt(remaining)}</p>`;
+      ? `<span style="font-size:15.5px; font-weight:700; color:var(--danger); display:block; margin-top:3px;">₹0</span>
+         <span style="font-size:10px; font-weight:600; color:var(--danger); display:block; margin-top:1px;">Over by ${fmt(overBudgetAmt)}</span>`
+      : `<span style="font-size:15.5px; font-weight:700; color:#10b981; display:block; margin-top:3px;">${fmt(remaining)}</span>`;
 
     budgetCardEl.innerHTML = `
-      <div class="budgetCardHead" style="margin-bottom:12px;">
+      <div class="budgetCardHead" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
         <div>
-          <p class="budgetCardTitle">Monthly Budget</p>
-          <p class="budgetCardSub" style="margin:2px 0 0; font-size:12px; color:var(--sub);">${monthLabelText}</p>
+          <div style="display:flex; align-items:center; gap:7px;">
+            <span style="font-size:15px;">🎯</span>
+            <p class="budgetCardTitle" style="font-size:15px; font-weight:700; color:var(--ink); margin:0;">Monthly Budget</p>
+          </div>
+          <p class="budgetCardSub" style="margin:3px 0 0; font-size:12px; color:var(--sub); font-weight:500;">${monthLabelText}</p>
         </div>
-        <button id="manageBudgetBtn" class="budgetManageLink">Manage</button>
+        <button id="manageBudgetBtn" class="budgetManageBtn" style="display:inline-flex; align-items:center; gap:5px; padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent); border:1px solid rgba(124,108,240,0.25); cursor:pointer; transition:all 0.2s ease;">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          Manage
+        </button>
       </div>
 
-      <div class="budgetSummaryGrid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-bottom:12px;">
-        <div style="background:var(--accent-soft); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
-          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Total Budget</span>
-          <span style="font-size:15px; font-weight:700; color:var(--ink); display:block; margin-top:2px;">${fmt(overall)}</span>
+      <div class="budgetSummaryGrid" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-bottom:14px;">
+        <div style="background:var(--accent-soft); border:1px solid rgba(124,108,240,0.18); border-radius:12px; padding:10px 12px;">
+          <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--sub); display:block;">Total Budget</span>
+          <span style="font-size:15.5px; font-weight:700; color:var(--ink); display:block; margin-top:3px;">${fmt(overall)}</span>
         </div>
-        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
-          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Used</span>
-          <span style="font-size:15px; font-weight:700; color:var(--ink); display:block; margin-top:2px;">${fmt(spent)}</span>
+        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:12px; padding:10px 12px;">
+          <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--sub); display:block;">Used</span>
+          <span style="font-size:15.5px; font-weight:700; color:var(--ink); display:block; margin-top:3px;">${fmt(spent)}</span>
         </div>
-        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
-          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Remaining</span>
+        <div style="background:${isOverBudget ? 'rgba(226,75,74,0.08)' : 'rgba(24,163,103,0.08)'}; border:1px solid ${isOverBudget ? 'rgba(226,75,74,0.22)' : 'rgba(24,163,103,0.22)'}; border-radius:12px; padding:10px 12px;">
+          <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:${isOverBudget ? 'var(--danger)' : '#10b981'}; display:block;">Remaining</span>
           ${remainingMetricHtml}
         </div>
-        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:9px 11px;">
-          <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Usage</span>
-          <span style="font-size:15px; font-weight:700; color:${state === 'danger' ? 'var(--danger)' : state === 'warning' ? '#a3660c' : 'var(--ink)'}; display:block; margin-top:2px;">${overall > 0 ? formatPercent(pct) : '0%'}</span>
+        <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:12px; padding:10px 12px;">
+          <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--sub); display:block;">Usage</span>
+          <span style="font-size:15.5px; font-weight:700; color:${state === 'danger' ? 'var(--danger)' : state === 'warning' ? '#d97706' : 'var(--ink)'}; display:block; margin-top:3px;">${overall > 0 ? formatPercent(pct) : '0%'}</span>
         </div>
       </div>
 
       <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--sub); margin-bottom:4px;">
-          <span>Progress bar</span>
-          <span style="font-weight:600; color:var(--ink);">${fmt(spent)} / ${fmt(overall)}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--sub); margin-bottom:6px; font-weight:500;">
+          <span>Budget Progress</span>
+          <span style="font-weight:700; color:var(--ink);">${fmt(spent)} / ${fmt(overall)}</span>
         </div>
-        <div class="budgetProgressTrack"><div class="budgetProgressFill ${state}" style="width:${cappedPct}%;"></div></div>
+        <div class="budgetProgressTrack" style="height:10px; background:rgba(124,108,240,0.1); border-radius:10px; overflow:hidden;">
+          <div class="budgetProgressFill ${state}" style="width:${cappedPct}%; height:100%; border-radius:10px; transition:width 0.4s ease;"></div>
+        </div>
       </div>`;
 
     const btn = document.getElementById('manageBudgetBtn');
@@ -4386,33 +4409,36 @@
     const cappedPct = Math.min(pct, 100);
     const state = overall > 0 ? budgetState(pct) : (spent > 0 ? 'warning' : 'normal');
 
+    const remainingHtml = isOver
+      ? `<span style="font-size:14px; font-weight:700; color:var(--danger); display:block; margin-top:2px;">₹0</span><span style="font-size:9.5px; color:var(--danger); font-weight:600; display:block;">Over by ${fmt(overAmt)}</span>`
+      : `<span style="font-size:14px; font-weight:700; color:#10b981; display:block; margin-top:2px;">${fmt(remaining)}</span>`;
+
     summaryContainer.innerHTML = `
-      <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:12px; padding:12px; margin-bottom:12px;">
+      <div style="background:var(--card); border:1px solid var(--glass-border); border-radius:14px; padding:12px 14px;">
         <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; margin-bottom:10px;">
-          <div style="background:var(--accent-soft); border-radius:8px; padding:8px 10px;">
-            <span style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--sub); display:block;">Overall Budget</span>
+          <div style="background:var(--accent-soft); border:1px solid rgba(124,108,240,0.15); border-radius:10px; padding:9px 10px;">
+            <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Total Budget</span>
             <span style="font-size:14px; font-weight:700; color:var(--ink); display:block; margin-top:2px;">${fmt(overall)}</span>
           </div>
-          <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:8px 10px;">
-            <span style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--sub); display:block;">Total Used</span>
+          <div style="background:var(--bg); border:1px solid var(--glass-border); border-radius:10px; padding:9px 10px;">
+            <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Used</span>
             <span style="font-size:14px; font-weight:700; color:var(--ink); display:block; margin-top:2px;">${fmt(spent)}</span>
           </div>
-          <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:8px 10px;">
-            <span style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--sub); display:block;">Remaining Budget</span>
-            <span style="font-size:14px; font-weight:700; color:${isOver ? 'var(--danger)' : 'var(--ink)'}; display:block; margin-top:2px;">${fmt(remaining)}</span>
-            ${isOver ? `<span style="font-size:9.5px; color:var(--danger); font-weight:600; display:block;">Over by ${fmt(overAmt)}</span>` : ''}
+          <div style="background:${isOver ? 'rgba(226,75,74,0.08)' : 'rgba(24,163,103,0.08)'}; border:1px solid ${isOver ? 'rgba(226,75,74,0.2)' : 'rgba(24,163,103,0.2)'}; border-radius:10px; padding:9px 10px;">
+            <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:${isOver ? 'var(--danger)' : '#10b981'}; display:block;">Remaining</span>
+            ${remainingHtml}
           </div>
-          <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:8px 10px;">
-            <span style="font-size:10px; font-weight:600; text-transform:uppercase; color:var(--sub); display:block;">Overall Usage %</span>
-            <span style="font-size:14px; font-weight:700; color:${state === 'danger' ? 'var(--danger)' : state === 'warning' ? '#a3660c' : 'var(--ink)'}; display:block; margin-top:2px;">${overall > 0 ? formatPercent(pct) : '0%'}</span>
+          <div style="background:var(--bg); border:1px solid var(--glass-border); border-radius:10px; padding:9px 10px;">
+            <span style="font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--sub); display:block;">Usage %</span>
+            <span style="font-size:14px; font-weight:700; color:${state === 'danger' ? 'var(--danger)' : state === 'warning' ? '#d97706' : 'var(--ink)'}; display:block; margin-top:2px;">${overall > 0 ? formatPercent(pct) : '0%'}</span>
           </div>
         </div>
         <div>
-          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--sub); margin-bottom:3px;">
-            <span>Progress</span>
-            <span style="font-weight:600; color:var(--ink);">${fmt(spent)} / ${fmt(overall)}</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--sub); margin-bottom:4px; font-weight:500;">
+            <span>Overall Usage</span>
+            <span style="font-weight:700; color:var(--ink);">${fmt(spent)} / ${fmt(overall)}</span>
           </div>
-          <div class="budgetProgressTrack small"><div class="budgetProgressFill ${state}" style="width:${cappedPct}%;"></div></div>
+          <div class="budgetProgressTrack small" style="height:8px; background:rgba(124,108,240,0.1); border-radius:8px; overflow:hidden;"><div class="budgetProgressFill ${state}" style="width:${cappedPct}%; height:100%; border-radius:8px;"></div></div>
         </div>
       </div>`;
   }
@@ -4438,45 +4464,48 @@
       const cCappedPct = Math.min(cPct, 100);
       const cState = cBudget > 0 ? budgetState(cPct) : (spent > 0 ? 'warning' : 'normal');
 
-      let remainingDisplay = `${fmt(cRemaining)}`;
+      let remainingDisplay = `<span style="font-weight:700; color:#10b981;">${fmt(cRemaining)}</span>`;
       if (cIsOver) {
-        remainingDisplay = `<span class="danger-text">₹0</span> <span style="font-size:9.5px; color:var(--danger); font-weight:600; display:block;">Over by ${fmt(cOverAmt)}</span>`;
+        remainingDisplay = `<span style="font-weight:700; color:var(--danger);">₹0</span><span style="font-size:9px; color:var(--danger); font-weight:600; display:block;">Over by ${fmt(cOverAmt)}</span>`;
       }
 
       const row = document.createElement('div');
       row.className = 'categoryBudgetRow';
-      row.style.cssText = 'background:var(--card); border:1px solid var(--glass-border); border-radius:10px; padding:10px; margin-bottom:8px;';
+      row.style.cssText = 'background:var(--card); border:1px solid var(--glass-border); border-radius:12px; padding:11px 13px; margin-bottom:10px;';
       row.innerHTML = `
-        <div class="categoryBudgetTop">
-          <div class="categoryBudgetLeft">
-            ${avatar(c, 32)}
-            <span class="categoryBudgetName">${c.name}</span>
+        <div class="categoryBudgetTop" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div class="categoryBudgetLeft" style="display:flex; align-items:center; gap:10px; min-width:0;">
+            ${avatar(c, 34)}
+            <div>
+              <span class="categoryBudgetName" style="font-size:13.5px; font-weight:600; color:var(--ink); display:block;">${c.name}</span>
+              <span style="font-size:10.5px; color:var(--sub); display:block;">${spent > 0 ? fmt(spent) + ' spent' : 'No spending'}</span>
+            </div>
           </div>
-          <div class="categoryBudgetInputWrap">
-            <span class="catBudgetCurrency" aria-hidden="true">₹</span>
-            <input type="number" inputmode="decimal" min="0" step="0.01" class="categoryBudgetInput" data-cat="${c.name}" placeholder="0" value="${inputVal}" aria-label="${c.name} budget" />
+          <div class="categoryBudgetInputWrap" style="position:relative; width:115px; flex-shrink:0;">
+            <span class="catBudgetCurrency" aria-hidden="true" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-weight:700; color:var(--accent); font-size:13px; pointer-events:none;">₹</span>
+            <input type="number" inputmode="decimal" min="0" step="0.01" class="categoryBudgetInput" data-cat="${c.name}" placeholder="0" value="${inputVal}" aria-label="${c.name} budget" style="width:100%; padding:7px 10px 7px 24px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg); font-size:13.5px; font-weight:600; color:var(--ink); box-shadow:none; outline:none;" />
           </div>
         </div>
         
-        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px; font-size:10.5px; margin-top:8px; padding-top:6px; border-top:1px dashed var(--glass-border);">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; font-size:10.5px; margin-top:9px; padding-top:8px; border-top:1px dashed var(--glass-border);">
           <div>
-            <span style="color:var(--sub); display:block; font-size:9.5px;">Budget</span>
-            <span style="font-weight:600; color:var(--ink);">${fmt(cBudget)}</span>
+            <span style="color:var(--sub); display:block; font-size:9.5px; font-weight:600; text-transform:uppercase;">Budget</span>
+            <span style="font-weight:700; color:var(--ink);">${fmt(cBudget)}</span>
           </div>
           <div>
-            <span style="color:var(--sub); display:block; font-size:9.5px;">Used</span>
-            <span style="font-weight:600; color:var(--ink);">${fmt(spent)}</span>
+            <span style="color:var(--sub); display:block; font-size:9.5px; font-weight:600; text-transform:uppercase;">Used</span>
+            <span style="font-weight:700; color:var(--ink);">${fmt(spent)}</span>
           </div>
           <div>
-            <span style="color:var(--sub); display:block; font-size:9.5px;">Remaining</span>
-            <span style="font-weight:600; color:${cIsOver ? 'var(--danger)' : 'var(--ink)'};">${remainingDisplay}</span>
+            <span style="color:var(--sub); display:block; font-size:9.5px; font-weight:600; text-transform:uppercase;">Remaining</span>
+            ${remainingDisplay}
           </div>
           <div>
-            <span style="color:var(--sub); display:block; font-size:9.5px;">Usage %</span>
-            <span style="font-weight:600; color:var(--ink);">${cBudget > 0 ? formatPercent(cPct) : '0%'}</span>
+            <span style="color:var(--sub); display:block; font-size:9.5px; font-weight:600; text-transform:uppercase;">Usage %</span>
+            <span style="font-weight:700; color:${cState === 'danger' ? 'var(--danger)' : cState === 'warning' ? '#d97706' : 'var(--ink)'};">${cBudget > 0 ? formatPercent(cPct) : '0%'}</span>
           </div>
         </div>
-        ${cBudget > 0 ? `<div class="budgetProgressTrack small" style="margin-top:5px;"><div class="budgetProgressFill ${cState}" style="width:${cCappedPct}%;"></div></div>` : ''}`;
+        ${cBudget > 0 ? `<div class="budgetProgressTrack small" style="height:6px; background:rgba(124,108,240,0.1); border-radius:6px; overflow:hidden; margin-top:7px;"><div class="budgetProgressFill ${cState}" style="width:${cCappedPct}%; height:100%; border-radius:6px;"></div></div>` : ''}`;
 
       categoryBudgetList.appendChild(row);
     });
