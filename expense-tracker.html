@@ -3141,6 +3141,9 @@
   function getBudgetForMonth(year, month){
     const key = monthKeyFor(year, month);
     const mb = budgets[key];
+    if (typeof mb === 'number') {
+      return { overall: mb, categories: {} };
+    }
     return mb ? { overall: Number(mb.overall) || 0, categories: mb.categories || {} } : { overall: 0, categories: {} };
   }
   function getCurrentMonthBudget(){
@@ -4400,7 +4403,7 @@
     
     const activeYear = (typeof viewYear !== 'undefined') ? viewYear : new Date().getFullYear();
     const activeMonth = (typeof viewMonth !== 'undefined') ? viewMonth : new Date().getMonth();
-    const overall = Number(budgetDraft.overall) || 0;
+    const overall = (budgetDraft && budgetDraft.overall) ? Number(budgetDraft.overall) || 0 : 0;
     const spent = getMonthTotal(activeYear, activeMonth);
     const isOver = overall > 0 && spent > overall;
     const remaining = isOver ? 0 : Math.max(0, overall - spent);
@@ -7128,9 +7131,9 @@
       const editBadge = document.getElementById('editModeBadge');
       if (editBadge && editBadge.classList.contains('show')) return; // editing, skip
 
-      const priceInput = document.getElementById('priceInput');
-      const dateInput = document.getElementById('dateInput');
-      const descInput = document.getElementById('descInput');
+      const priceInput = document.getElementById('price') || document.getElementById('priceInput');
+      const dateInput = document.getElementById('date') || document.getElementById('dateInput');
+      const descInput = document.getElementById('desc') || document.getElementById('descInput');
       const catGrid = document.getElementById('catGrid');
       if (!priceInput || !dateInput) return;
 

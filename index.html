@@ -2,14 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirecting...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#8b5cf6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Expense Tracker</title>
   <meta http-equiv="refresh" content="0; url=./expense-tracker.html">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f2f3f9;
+      color: #1e293b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .loader {
+      text-align: center;
+      padding: 24px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 16px;
+      border: 3px solid rgba(124, 108, 240, 0.2);
+      border-top-color: #7c6cf0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
   <script type="text/javascript">
     window.location.replace("./expense-tracker.html");
   </script>
 </head>
 <body>
-  <p>Redirecting to <a href="./expense-tracker.html">Expense Tracker</a>...</p>
+  <div class="loader">
+    <div class="spinner"></div>
+    <p style="font-size: 14px; font-weight: 600; color: #475569; margin: 0;">Loading Expense Tracker...</p>
+    <p style="font-size: 12px; color: #94a3b8; margin: 8px 0 0;"><a href="./expense-tracker.html" style="color: #7c6cf0; text-decoration: none;">Click here if not redirected automatically</a></p>
+  </div>
 </body>
 </html>
