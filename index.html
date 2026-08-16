@@ -27,6 +27,7 @@
     .loader {
       text-align: center;
       padding: 24px;
+      max-width: 320px;
     }
     .spinner {
       width: 36px;
@@ -39,6 +40,40 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
+  <script>
+    window.__emergencyExportData = function() {
+      try {
+        var exp = localStorage.getItem('expense_tracker_data') || '[]';
+        var bud = localStorage.getItem('expense_tracker_budgets') || '{}';
+        var rec = localStorage.getItem('expense_tracker_recurring') || '[]';
+        var skips = localStorage.getItem('expense_tracker_recurring_skips') || '{}';
+        var autoBackups = localStorage.getItem('expense_tracker_auto_backups') || '[]';
+        var payload = {
+          timestamp: new Date().toISOString(),
+          version: 1,
+          expenses: JSON.parse(exp),
+          budgets: JSON.parse(bud),
+          recurringRules: JSON.parse(rec),
+          recurringSkips: JSON.parse(skips),
+          autoBackups: JSON.parse(autoBackups)
+        };
+        var jsonStr = JSON.stringify(payload, null, 2);
+        var blob = new Blob([jsonStr], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        var now = new Date();
+        var dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        a.href = url;
+        a.download = 'emergency-expense-backup-' + dateStr + '.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch(e){} }, 1000);
+        alert('Safe JSON Backup downloaded successfully!');
+      } catch(err) {
+        alert('Export error: ' + err.message);
+      }
+    };
+  </script>
   <script type="text/javascript">
     window.location.replace("./expense-tracker.html");
   </script>
@@ -47,7 +82,8 @@
   <div class="loader">
     <div class="spinner"></div>
     <p style="font-size: 14px; font-weight: 600; color: #475569; margin: 0;">Loading Expense Tracker...</p>
-    <p style="font-size: 12px; color: #94a3b8; margin: 8px 0 0;"><a href="./expense-tracker.html" style="color: #7c6cf0; text-decoration: none;">Click here if not redirected automatically</a></p>
+    <p style="font-size: 12px; color: #94a3b8; margin: 8px 0 16px;"><a href="./expense-tracker.html" style="color: #7c6cf0; text-decoration: none;">Click here if not redirected automatically</a></p>
+    <button onclick="window.__emergencyExportData()" style="background:rgba(124,108,240,0.12); color:#7c6cf0; border:1px solid rgba(124,108,240,0.25); border-radius:10px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer;">🛡️ Emergency Backup (Download JSON)</button>
   </div>
 </body>
 </html>
