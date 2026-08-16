@@ -726,8 +726,10 @@
     position:absolute; inset:0; z-index:60; padding:1.1rem 1rem;
     background:var(--bg); pointer-events:none;
     transition:opacity .35s var(--ease-premium), visibility .35s;
+    animation: skelAutoHide 0.7s forwards 0.35s;
   }
-  .skeletonOverlay.hide{ opacity:0; visibility:hidden; }
+  @keyframes skelAutoHide { to { opacity:0; visibility:hidden; pointer-events:none; } }
+  .skeletonOverlay.hide{ opacity:0; visibility:hidden; pointer-events:none; }
   .skelRow{ display:flex; gap:10px; align-items:center; margin-bottom:12px; }
   .skelBlock{
     border-radius:16px; background:linear-gradient(100deg, rgba(150,140,220,0.14) 20%, rgba(150,140,220,0.28) 40%, rgba(150,140,220,0.14) 60%);
@@ -7702,10 +7704,11 @@
         });
     });
 
-    // Auto refresh client when service worker activates updates
+    // Auto refresh client only when an existing service worker updates (not on initial install)
+    let hadController = Boolean(navigator.serviceWorker.controller);
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
+      if (hadController && !refreshing) {
         refreshing = true;
         window.location.reload();
       }

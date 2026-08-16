@@ -1,5 +1,5 @@
 // Cache version — bump this string whenever you deploy a new version
-const CACHE = "expense-tracker-v6";
+const CACHE = "expense-tracker-v7";
 
 // Automatically detect the base path relative to the service worker file location
 const basePath = self.location.pathname.substring(0, self.location.pathname.lastIndexOf('/') + 1);
@@ -19,15 +19,16 @@ const OPTIONAL_FILES = [
   "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
 ];
 
-// Install: cache core files reliably, optional files best-effort
+// Install: cache core files reliably and pre-populate app content
 self.addEventListener("install", e => {
   e.waitUntil(
     caches.open(CACHE).then(async cache => {
-      // Cache core files
+      // 1. Cache core assets
       await cache.addAll(CORE_FILES).catch(err => {
         console.warn("[SW] Core files cache warning:", err);
       });
-      // Ensure expense-tracker.html is also populated for root and index.html in cache
+
+      // 2. Ensure expense-tracker.html is also cached for root path and index.html
       try {
         const appRes = await fetch(basePath + "expense-tracker.html");
         if (appRes && appRes.ok) {
@@ -36,9 +37,10 @@ self.addEventListener("install", e => {
           await cache.put(basePath + "index.html", appRes.clone());
         }
       } catch (err) {
-        /* ignore */
+        /* ignore fetch failures during offline install */
       }
-      // Cache optional files silently
+
+      // 3. Cache optional files best-effort
       await Promise.allSettled(
         OPTIONAL_FILES.map(file =>
           cache.add(file).catch(() => { /* optional — ignore */ })
@@ -46,7 +48,7 @@ self.addEventListener("install", e => {
       );
     })
   );
-  // Activate immediately — don't wait for old tabs to close
+  // Activate immediately
   self.skipWaiting();
 });
 
@@ -56,59 +58,103 @@ self.addEventListener("activate", e => {
     caches.keys().then(keys =>
       Promise.all(
         keys.map(key => {
-          if (key !== CACHE) return caches.delete(key);
+          if (key !== CACHE) {
+            console.log("[SW] Deleting old cache:", key);
+            return caches.delete(key);
+          }
         })
       )
     ).then(() => self.clients.claim())
   );
 });
 
-// Fetch: network-first for navigation with solid offline fallback to expense-tracker.html
+// Fetch: Fast-launch with Cache-First + Stale-While-Revalidate
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
 
-  // Navigation requests: network-first with offline fallback to expense-tracker.html
+  const url = new URL(e.request.url);
+
+  // Navigation requests: Check cache first for INSTANT mobile load, update in background
   if (e.request.mode === "navigate") {
     e.respondWith(
-      fetch(e.request)
-        .then(response => {
-          // Update cache with fresh HTML on each navigation
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE).then(cache => cache.put(e.request, clone));
+      (async () => {
+        // Try matching exact request or app HTML from cache first
+        const cachedResponse =
+          (await caches.match(e.request)) ||
+          (await caches.match(basePath + "expense-tracker.html")) ||
+          (await caches.match(basePath)) ||
+          (await caches.match(basePath + "index.html"));
+
+        // If found in cache, return immediately and update cache in background
+        if (cachedResponse) {
+          // Background revalidation
+          fetch(e.request)
+            .then(networkResponse => {
+              if (networkResponse && networkResponse.status === 200) {
+                const clone = networkResponse.clone();
+                caches.open(CACHE).then(cache => {
+                  cache.put(e.request, clone);
+                  cache.put(basePath + "expense-tracker.html", networkResponse.clone());
+                });
+              }
+            })
+            .catch(() => { /* offline / network error — cached version already returned */ });
+
+          return cachedResponse;
+        }
+
+        // If not in cache (e.g. initial first run), fetch from network
+        try {
+          const networkResponse = await fetch(e.request);
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE).then(cache => {
+              cache.put(e.request, clone);
+              cache.put(basePath + "expense-tracker.html", networkResponse.clone());
+            });
           }
-          return response;
-        })
-        .catch(async () => {
-          const cachedApp = await caches.match(basePath + "expense-tracker.html");
-          if (cachedApp) return cachedApp;
-          const cachedRoot = await caches.match(basePath);
-          if (cachedRoot) return cachedRoot;
-          const cachedReq = await caches.match(e.request);
-          if (cachedReq) return cachedReq;
+          return networkResponse;
+        } catch (netErr) {
+          // Offline fallback
+          const fallback =
+            (await caches.match(basePath + "expense-tracker.html")) ||
+            (await caches.match(basePath));
+          if (fallback) return fallback;
+
           return new Response("Offline - Expense Tracker", {
             status: 503,
             statusText: "Offline",
             headers: { "Content-Type": "text/plain" }
           });
-        })
+        }
+      })()
     );
     return;
   }
 
-  // All other requests: cache-first, then network with background cache update
+  // All other requests (CSS, JS, images, icons, CDN): Cache-First + Stale-While-Revalidate
   e.respondWith(
     caches.match(e.request).then(cached => {
-      if (cached) return cached;
+      if (cached) {
+        // Revalidate in background for same-origin resources
+        if (url.origin === self.location.origin) {
+          fetch(e.request).then(response => {
+            if (response && response.status === 200) {
+              const clone = response.clone();
+              caches.open(CACHE).then(cache => cache.put(e.request, clone));
+            }
+          }).catch(() => {});
+        }
+        return cached;
+      }
+
       return fetch(e.request).then(response => {
-        // Cache successful GET responses (including opaque CDN responses)
         if (response && (response.status === 200 || response.type === "opaque")) {
           const clone = response.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return response;
       }).catch(() => {
-        // Return a blank 503 for failed non-navigate fetches
         return new Response("", { status: 503, statusText: "Offline" });
       });
     })

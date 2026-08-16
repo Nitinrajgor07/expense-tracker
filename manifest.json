@@ -4,8 +4,8 @@
   "start_url": "./expense-tracker.html",
   "display": "standalone",
   "display_override": [
-    "window-controls-overlay",
-    "standalone"
+    "standalone",
+    "window-controls-overlay"
   ],
   "id": "./expense-tracker.html",
   "scope": "./",
