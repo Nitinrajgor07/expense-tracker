@@ -14,6 +14,27 @@
 <script>
   // Safe Emergency Data Recovery System (Zero dependencies, executes before everything)
   (function() {
+    // ── Self-healing: Detect if this page was loaded from a stale SW cache ──
+    // The redirect-only shell was tiny (~3KB). The full app is ~400KB.
+    // If document.documentElement.outerHTML is very short on DOMContentLoaded,
+    // we know we got the old cached redirect. In that case, wipe SW caches and reload.
+    window.addEventListener('DOMContentLoaded', function() {
+      var appMarker = document.getElementById('homeView');
+      var bodySize = document.body ? document.body.innerHTML.length : 0;
+      if (!appMarker || bodySize < 5000) {
+        console.warn('[Self-Heal] Old cached page detected. Clearing SW caches and reloading...');
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(n) { return caches.delete(n); }));
+          }).then(function() {
+            window.location.reload(true);
+          }).catch(function() { window.location.reload(true); });
+        } else {
+          window.location.reload(true);
+        }
+      }
+    });
+
     window.__getStoredBackupObject = function() {
       try {
         var exp = localStorage.getItem('expense_tracker_data') || '[]';
