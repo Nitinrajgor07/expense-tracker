@@ -14,23 +14,20 @@
 <script>
   // Safe Emergency Data Recovery System (Zero dependencies, executes before everything)
   (function() {
-    // ── Self-healing: Detect if this page was loaded from a stale SW cache ──
-    // The redirect-only shell was tiny (~3KB). The full app is ~400KB.
-    // If document.documentElement.outerHTML is very short on DOMContentLoaded,
-    // we know we got the old cached redirect. In that case, wipe SW caches and reload.
+    // ── Self-healing: Safely recover from legacy redirect caches ──
     window.addEventListener('DOMContentLoaded', function() {
-      var appMarker = document.getElementById('homeView');
-      var bodySize = document.body ? document.body.innerHTML.length : 0;
-      if (!appMarker || bodySize < 5000) {
-        console.warn('[Self-Heal] Old cached page detected. Clearing SW caches and reloading...');
+      var appEl = document.getElementById('app');
+      if (!appEl && !sessionStorage.getItem('__heal_attempted')) {
+        sessionStorage.setItem('__heal_attempted', '1');
+        console.warn('[Self-Heal] Legacy page detected. Clearing SW caches and reloading...');
         if ('caches' in window) {
           caches.keys().then(function(names) {
             return Promise.all(names.map(function(n) { return caches.delete(n); }));
           }).then(function() {
-            window.location.reload(true);
-          }).catch(function() { window.location.reload(true); });
+            window.location.reload();
+          }).catch(function() { window.location.reload(); });
         } else {
-          window.location.reload(true);
+          window.location.reload();
         }
       }
     });
@@ -3489,12 +3486,10 @@
       grandTotal
     });
     renderTodaySpendingCard(todayTotal);
-    renderRecentTransactions();
     
     // Phase 17 Premium Fintech additions (deferred to avoid blocking main thread)
     deferRender(() => {
       updateFintechDashboard();
-      updateDashboardInsights();
     });
   }
 
@@ -3505,11 +3500,6 @@
     const ftRemainingBudget = document.getElementById('ftRemainingBudget');
     const ftAvgDaily = document.getElementById('ftAvgDaily');
     const ftMonthlySavings = document.getElementById('ftMonthlySavings');
-    const ftHighestCat = document.getElementById('ftHighestCat');
-    const ftLowestCat = document.getElementById('ftLowestCat');
-    const healthCircle = document.getElementById('healthScoreCircle');
-    const healthText = document.getElementById('healthScoreText');
-    const healthAdvice = document.getElementById('healthScoreAdvice');
 
     const now = new Date();
     const ts = todayStr();
@@ -3561,72 +3551,8 @@
 
     // 5. Avg Daily
     const dayOfMonth = currentDate.getDate();
-    const avgDaily = monthlySpent / dayOfMonth;
+    const avgDaily = monthlySpent / Math.max(1, dayOfMonth);
     if (ftAvgDaily) animateValue(ftAvgDaily, avgDaily, fmt, 500);
-
-    // 6. Highest & Lowest Category
-    const currentMonthCatTotals = {};
-    expenses.forEach(e => {
-      const d = new Date(e.date);
-      if (d.getFullYear() === currentDate.getFullYear() && d.getMonth() === currentDate.getMonth()) {
-        currentMonthCatTotals[e.category] = (currentMonthCatTotals[e.category] || 0) + Number(e.price);
-      }
-    });
-
-    let maxCat = null, maxCatAmt = 0;
-    let minCat = null, minCatAmt = Infinity;
-    Object.entries(currentMonthCatTotals).forEach(([cat, amt]) => {
-      if (amt > maxCatAmt) { maxCatAmt = amt; maxCat = cat; }
-      if (amt > 0 && amt < minCatAmt) { minCatAmt = amt; minCat = cat; }
-    });
-
-    if (ftHighestCat) {
-      ftHighestCat.textContent = maxCat ? `${maxCat} (${fmt(maxCatAmt)})` : 'None';
-    }
-    if (ftLowestCat) {
-      ftLowestCat.textContent = (minCat && minCatAmt !== Infinity) ? `${minCat} (${fmt(minCatAmt)})` : 'None';
-    }
-
-    // 7. Financial Health Score
-    const score = calculateFinancialHealthScore();
-    let scoreColor = '#18a367';
-    let advice = 'Excellent financial health! Keep tracking your spending.';
-    
-    if (overallBudget > 0) {
-      const ratio = monthlySpent / overallBudget;
-      if (ratio > 1) {
-        scoreColor = '#e5484d';
-        advice = 'Budget exceeded';
-      } else if (ratio >= 0.9) {
-        scoreColor = '#e5484d';
-        advice = 'Nearing budget limit (90%+)';
-      } else if (ratio >= 0.75) {
-        scoreColor = '#f5a524';
-        advice = '75%+ budget used';
-      } else {
-        const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-        const expectedRatio = dayOfMonth / daysInMonth;
-        if (ratio > expectedRatio * 1.2) {
-          scoreColor = '#f5a524';
-          advice = 'Pace above monthly average';
-        }
-      }
-    } else {
-      scoreColor = '#f5a524';
-      advice = 'Set monthly budget';
-    }
-
-    if (healthCircle) {
-      const circumference = 213.63;
-      const offset = circumference * (1 - score / 100);
-      healthCircle.style.strokeDashoffset = offset;
-      healthCircle.style.stroke = scoreColor;
-    }
-    if (healthText) healthText.textContent = score;
-    if (healthAdvice) {
-      healthAdvice.textContent = advice;
-      healthAdvice.style.color = scoreColor;
-    }
   }
 
   function calculateFinancialHealthScore() {
@@ -7825,7 +7751,7 @@
       // Automatically detect the repository path or base folder (e.g. for GitHub Pages)
       const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
       
-      navigator.serviceWorker.register(basePath + 'service-worker.js', { scope: basePath })
+      navigator.serviceWorker.register(basePath + 'service-worker.js', { scope: basePath, updateViaCache: 'none' })
         .then(reg => {
           console.log('[PWA] Service Worker registered with scope:', reg.scope);
           try { reg.update().catch(() => {}); } catch(e) {}
