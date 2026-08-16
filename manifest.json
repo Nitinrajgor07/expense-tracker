@@ -1,13 +1,13 @@
 {
   "name": "My Expenses",
   "short_name": "Expenses",
-  "start_url": "./expense-tracker.html",
+  "start_url": "./",
   "display": "standalone",
   "display_override": [
     "standalone",
     "window-controls-overlay"
   ],
-  "id": "./expense-tracker.html",
+  "id": "./",
   "scope": "./",
   "description": "Premium Personal Expense Tracker — track daily spending, budgets, and recurring expenses offline.",
   "background_color": "#f2f3f9",

@@ -1,5 +1,5 @@
 // Cache version — bump this string whenever you deploy a new version
-const CACHE = "expense-tracker-v7";
+const CACHE = "expense-tracker-v8";
 
 // Automatically detect the base path relative to the service worker file location
 const basePath = self.location.pathname.substring(0, self.location.pathname.lastIndexOf('/') + 1);
@@ -28,13 +28,13 @@ self.addEventListener("install", e => {
         console.warn("[SW] Core files cache warning:", err);
       });
 
-      // 2. Ensure expense-tracker.html is also cached for root path and index.html
+      // 2. Ensure both index.html and expense-tracker.html are cached for root
       try {
-        const appRes = await fetch(basePath + "expense-tracker.html");
+        const appRes = await fetch(basePath + "index.html");
         if (appRes && appRes.ok) {
-          await cache.put(basePath + "expense-tracker.html", appRes.clone());
           await cache.put(basePath, appRes.clone());
           await cache.put(basePath + "index.html", appRes.clone());
+          await cache.put(basePath + "expense-tracker.html", appRes.clone());
         }
       } catch (err) {
         /* ignore fetch failures during offline install */
@@ -81,9 +81,9 @@ self.addEventListener("fetch", e => {
         // Try matching exact request or app HTML from cache first
         const cachedResponse =
           (await caches.match(e.request)) ||
-          (await caches.match(basePath + "expense-tracker.html")) ||
           (await caches.match(basePath)) ||
-          (await caches.match(basePath + "index.html"));
+          (await caches.match(basePath + "index.html")) ||
+          (await caches.match(basePath + "expense-tracker.html"));
 
         // If found in cache, return immediately and update cache in background
         if (cachedResponse) {
@@ -94,6 +94,8 @@ self.addEventListener("fetch", e => {
                 const clone = networkResponse.clone();
                 caches.open(CACHE).then(cache => {
                   cache.put(e.request, clone);
+                  cache.put(basePath, networkResponse.clone());
+                  cache.put(basePath + "index.html", networkResponse.clone());
                   cache.put(basePath + "expense-tracker.html", networkResponse.clone());
                 });
               }
@@ -110,6 +112,8 @@ self.addEventListener("fetch", e => {
             const clone = networkResponse.clone();
             caches.open(CACHE).then(cache => {
               cache.put(e.request, clone);
+              cache.put(basePath, networkResponse.clone());
+              cache.put(basePath + "index.html", networkResponse.clone());
               cache.put(basePath + "expense-tracker.html", networkResponse.clone());
             });
           }
@@ -117,8 +121,9 @@ self.addEventListener("fetch", e => {
         } catch (netErr) {
           // Offline fallback
           const fallback =
-            (await caches.match(basePath + "expense-tracker.html")) ||
-            (await caches.match(basePath));
+            (await caches.match(basePath)) ||
+            (await caches.match(basePath + "index.html")) ||
+            (await caches.match(basePath + "expense-tracker.html"));
           if (fallback) return fallback;
 
           return new Response("Offline - Expense Tracker", {
