@@ -1,5 +1,5 @@
 // Cache version — bump this string whenever you deploy a new version
-const CACHE = "expense-tracker-v11";
+const CACHE = "expense-tracker-v12";
 
 // Automatically detect the base path relative to the service worker file location
 const basePath = self.location.pathname.substring(0, self.location.pathname.lastIndexOf('/') + 1);
@@ -36,7 +36,7 @@ self.addEventListener("install", e => {
       );
     })
   );
-  // Force active immediately
+  // Force activate immediately without waiting for existing clients to close
   self.skipWaiting();
 });
 
@@ -48,7 +48,7 @@ self.addEventListener("activate", e => {
         Promise.all(
           keys.map(key => {
             if (key !== CACHE) {
-              console.log("[SW] Deleting stale cache:", key);
+              console.log("[SW] Deleting stale legacy cache:", key);
               return caches.delete(key);
             }
           })
@@ -61,8 +61,6 @@ self.addEventListener("activate", e => {
 // ─── Fetch ───────────────────────────────────────────────────────────────────
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
-
-  const url = new URL(e.request.url);
 
   // 1. Navigation Requests (Page Loads / PWA Launch)
   // Network-First with Cache Fallback: Always gets newest HTML online, falls back to cache offline
@@ -80,6 +78,7 @@ self.addEventListener("fetch", e => {
             });
             return networkResponse;
           }
+          // If network returned non-200, check cache
           return caches.match(e.request).then(cached => cached || networkResponse);
         })
         .catch(async () => {
@@ -92,7 +91,7 @@ self.addEventListener("fetch", e => {
           if (fallback) return fallback;
 
           return new Response(
-            "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Expense Tracker - Offline</title><style>body{font-family:sans-serif;padding:24px;text-align:center;background:#f2f3f9;color:#1e293b;}</style></head><body><h2>⚠️ Offline Mode</h2><p>Please connect to the internet to load Expense Tracker for the first time.</p><button onclick='location.reload()' style='padding:10px 18px;background:#7c6cf0;color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;'>Retry</button></body></html>",
+            "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Expense Tracker</title><style>body{font-family:-apple-system,sans-serif;padding:32px;text-align:center;background:#f2f3f9;color:#1e293b;}.btn{margin-top:16px;padding:10px 20px;background:#7c6cf0;color:#fff;border:none;border-radius:12px;font-weight:600;cursor:pointer;}</style></head><body><h2>⚠️ You are currently offline</h2><p>Please connect to the internet to load Expense Tracker.</p><button class='btn' onclick='location.reload()'>Tap to Retry</button></body></html>",
             {
               status: 200,
               headers: { "Content-Type": "text/html; charset=utf-8" }
@@ -108,6 +107,7 @@ self.addEventListener("fetch", e => {
     caches.match(e.request).then(cached => {
       if (cached) {
         // Revalidate same-origin assets in background
+        const url = new URL(e.request.url);
         if (url.origin === self.location.origin) {
           fetch(e.request)
             .then(res => {

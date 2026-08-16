@@ -131,6 +131,10 @@
       }
     }, 2500);
 
+    if (window.location.search.indexOf('clean') !== -1 || window.location.search.indexOf('reset-sw') !== -1 || window.location.hash.indexOf('clean') !== -1) {
+      window.__emergencyClearSWCacheAndReload();
+    }
+
     if (window.location.search.indexOf('recovery') !== -1 || window.location.hash.indexOf('recovery') !== -1) {
       window.addEventListener('DOMContentLoaded', function() {
         var bar = document.getElementById('emergencyRecoveryBar');
