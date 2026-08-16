@@ -117,12 +117,19 @@
       console.warn('[Crash Boundary]', e.message);
       setTimeout(function() {
         var bar = document.getElementById('emergencyRecoveryBar');
-        var home = document.getElementById('homeView');
-        if (bar && (!home || home.style.display === 'none')) {
-          bar.style.display = 'block';
-        }
-      }, 2000);
+        var errText = document.getElementById('emergencyErrorMsg');
+        if (errText) errText.textContent = 'Diagnostic info: ' + (e.message || 'Script error');
+        if (bar) bar.style.display = 'block';
+      }, 500);
     });
+
+    // Auto-reveal recovery options if main app does not complete rendering within 2.5s
+    setTimeout(function() {
+      if (!window.__appLoadedSuccessfully) {
+        var bar = document.getElementById('emergencyRecoveryBar');
+        if (bar) bar.style.display = 'block';
+      }
+    }, 2500);
 
     if (window.location.search.indexOf('recovery') !== -1 || window.location.hash.indexOf('recovery') !== -1) {
       window.addEventListener('DOMContentLoaded', function() {
@@ -3177,6 +3184,7 @@
     }
     try { summarizeRecurringProcessing(result); } catch(e){}
     try { refreshAnalyticsIfOpen(); } catch(e){}
+    window.__appLoadedSuccessfully = true;
   }
   function save(){
     try { localStorage.setItem(KEY, JSON.stringify(expenses)); }
@@ -7747,7 +7755,7 @@
 
   // 1) Dynamic Service Worker Registration
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
+    const registerSW = () => {
       // Automatically detect the repository path or base folder (e.g. for GitHub Pages)
       const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
       
@@ -7756,26 +7764,34 @@
           console.log('[PWA] Service Worker registered with scope:', reg.scope);
           try { reg.update().catch(() => {}); } catch(e) {}
           
-          // Check if an updated worker is already waiting
+          // If a new worker is waiting, activate it immediately
           if (reg.waiting) {
-            showUpdateBanner(reg.waiting);
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
           }
           
           // Listen for new installing service worker updates
           reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                showUpdateBanner(newWorker);
-              }
-            });
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  showUpdateBanner(newWorker);
+                }
+              });
+            }
           });
         })
         .catch(err => {
-          console.error('[PWA] Service Worker registration failed:', err);
+          console.warn('[PWA] Service Worker registration failed (non-blocking):', err);
         });
-    });
+    };
 
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      registerSW();
+    } else {
+      window.addEventListener('DOMContentLoaded', registerSW);
+    }
     // Auto refresh client only when an existing service worker updates (not on initial install)
     let hadController = Boolean(navigator.serviceWorker.controller);
     let refreshing = false;
