@@ -3141,21 +3141,24 @@
       budgets = rawB ? JSON.parse(rawB) : {};
       if(typeof budgets !== 'object' || budgets === null) budgets = {};
     } catch(e) { console.error('Failed to load budgets from storage:', e); budgets = {}; }
-    loadRecurring();
-    try {
-      renderList();
-      updateTopCards();
-      renderDaywise();
-      renderBudgetCard();
-    } catch(e) { console.error('Error during initial render:', e); }
+    try { loadRecurring(); } catch(e) { console.error('loadRecurring error:', e); }
+    try { renderList(); } catch(e) { console.error('renderList error:', e); }
+    try { updateTopCards(); } catch(e) { console.error('updateTopCards error:', e); }
+    try { renderDaywise(); } catch(e) { console.error('renderDaywise error:', e); }
+    try { renderBudgetCard(); } catch(e) { console.error('renderBudgetCard error:', e); }
+    
     let result = { generated: 0, capHit: false };
     try { result = processRecurringRules(); }
     catch(e) { console.error('Error processing recurring rules:', e); }
-    if(result.generated > 0){
-      renderList(); updateTopCards(); renderDaywise(); renderSummary(); renderBudgetCard();
+    if(result && result.generated > 0){
+      try { renderList(); } catch(e){}
+      try { updateTopCards(); } catch(e){}
+      try { renderDaywise(); } catch(e){}
+      try { renderSummary(); } catch(e){}
+      try { renderBudgetCard(); } catch(e){}
     }
-    summarizeRecurringProcessing(result);
-    refreshAnalyticsIfOpen();
+    try { summarizeRecurringProcessing(result); } catch(e){}
+    try { refreshAnalyticsIfOpen(); } catch(e){}
   }
   function save(){
     try { localStorage.setItem(KEY, JSON.stringify(expenses)); }
@@ -6474,7 +6477,11 @@
   // ============================================
   // PHASE 16: Initialize state and load app
   // ============================================
-  initializeAppState();
+  try {
+    initializeAppState();
+  } catch(err) {
+    console.warn('initializeAppState fallback:', err);
+  }
   
   // Register all modals with ModalManager
   (function() {
@@ -7800,6 +7807,7 @@
       navigator.serviceWorker.register(basePath + 'service-worker.js', { scope: basePath })
         .then(reg => {
           console.log('[PWA] Service Worker registered with scope:', reg.scope);
+          try { reg.update().catch(() => {}); } catch(e) {}
           
           // Check if an updated worker is already waiting
           if (reg.waiting) {
